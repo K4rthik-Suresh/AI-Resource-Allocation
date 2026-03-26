@@ -42,10 +42,13 @@ CONFLICT DETECTION:
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, session
 from flask_login import login_required, current_user
 from models import db, Booking, Resource, BookingHistory, User, ResourceSystem, UserFavorite, SystemAnnouncement
-from datetime import datetime, date, time, timedelta
+from datetime import datetime, date, time, timedelta, timezone
 from decimal import Decimal
 from ai.ai_module import AIModule
 import logging
+
+# IST timezone (UTC+5:30) - used for accurate time comparisons on deployed server
+IST = timezone(timedelta(hours=5, minutes=30))
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +72,7 @@ def mark_expired_bookings_as_completed():
     Auto-update any confirmed bookings that have passed their date/time to 'completed' status.
     Called before fetching bookings to ensure accurate status display.
     """
-    now = datetime.now()
+    now = datetime.now(IST)
     
     # Find all confirmed bookings where the end date+time has passed
     expired_bookings = Booking.query.filter(
@@ -83,10 +86,13 @@ def mark_expired_bookings_as_completed():
         Booking.booking_date == now.date()
     ).all()
     
+    # Use naive version of IST 'now' for comparisons with naive booking times
+    now_naive = now.replace(tzinfo=None)
+    
     for booking in expired_today:
         # Create end datetime from booking_date + end_time
         booking_end = datetime.combine(booking.booking_date, booking.end_time)
-        if booking_end <= now:
+        if booking_end <= now_naive:
             expired_bookings.append(booking)
     
     # Update all expired bookings to 'completed'
