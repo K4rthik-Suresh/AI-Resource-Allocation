@@ -174,7 +174,11 @@ Rules:
   * Ordinal: "15th March 2026" or "March 15th, 2026"
   * Numerical DMY (British): "15/03/2026", "15.03.26", "15-03-2026"
   * ISO 8601: "2026-03-15"
-  * Relative: "tomorrow", "next Monday", "in 3 days"
+- IMPORTANT WEEKDAY RULES (Current date is {datetime.now().strftime('%Y-%m-%d')}, day of week is {datetime.now().strftime('%A')}):
+  * "next [weekday]" (e.g., "next monday") MUST jump 1 to 7 days ahead to the NEXT occurrence of that day.
+  * "this [weekday]" or "on [weekday]" MUST pick the upcoming occurrence (0 to 6 days ahead).
+  * A bare weekday like "monday" also means the upcoming occurrence.
+  * "in X days" means exactly X days from today.
 - For 2-digit years, assume 2000s (e.g., 26 = 2026)
 - Time ranges like "10am to 5pm" should set both start_time and end_time
 - Infer duration from time range if provided
