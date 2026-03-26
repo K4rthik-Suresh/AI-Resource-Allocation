@@ -20,10 +20,10 @@
                         <p>
                             {% if booking.status == 'confirmed' %}
                                 <span class="badge bg-success">{{ booking.status.upper() }}</span>
-                            {% elif booking.status == 'pending' %}
-                                <span class="badge bg-warning">{{ booking.status.upper() }}</span>
                             {% elif booking.status == 'cancelled' %}
                                 <span class="badge bg-danger">{{ booking.status.upper() }}</span>
+                            {% elif booking.status == 'completed' %}
+                                <span class="badge bg-primary">{{ booking.status.upper() }}</span>
                             {% else %}
                                 <span class="badge bg-secondary">{{ booking.status.upper() }}</span>
                             {% endif %}

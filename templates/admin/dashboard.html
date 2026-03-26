@@ -145,7 +145,6 @@
             <div style="padding: 12px 16px; border-bottom: 1px solid #e9ecef;">
                 <div class="btn-group btn-group-sm w-100" role="group">
                     <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary {{ 'active' if not request.args.get('booking_status') else '' }}">All</a>
-                    <a href="{{ url_for('admin.dashboard', booking_status='pending') }}" class="btn btn-outline-warning {{ 'active' if request.args.get('booking_status') == 'pending' else '' }}">Pending</a>
                     <a href="{{ url_for('admin.dashboard', booking_status='confirmed') }}" class="btn btn-outline-success {{ 'active' if request.args.get('booking_status') == 'confirmed' else '' }}">Confirmed</a>
                     <a href="{{ url_for('admin.dashboard', booking_status='cancelled') }}" class="btn btn-outline-danger {{ 'active' if request.args.get('booking_status') == 'cancelled' else '' }}">Cancelled</a>
                     <a href="{{ url_for('admin.dashboard', booking_status='completed') }}" class="btn btn-outline-secondary {{ 'active' if request.args.get('booking_status') == 'completed' else '' }}">Completed</a>
@@ -163,7 +162,7 @@
                                 <h6>{{ booking.resource.name }}</h6>
                                 <p><i class="bi bi-person"></i> {{ booking.user.username }} • {{ booking.booking_date }}</p>
                             </div>
-                            <span class="badge badge-{{ 'success' if booking.status == 'confirmed' else ('warning' if booking.status == 'pending' else ('primary' if booking.status == 'completed' else 'danger')) }}">
+                            <span class="badge badge-{{ 'success' if booking.status == 'confirmed' else ('primary' if booking.status == 'completed' else 'danger') }}">
                                 {{ booking.status|upper }}
                             </span>
                         </div>
