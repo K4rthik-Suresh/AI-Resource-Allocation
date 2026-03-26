@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Resource - Admin{% endblock %}
+
+{% block content %}
+<div class="container mt-5" style="max-width: 600px;">
+    <div class="mb-4">
+        <h1>Edit Resource</h1>
+        <p class="text-muted">Update resource details</p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="card">
+        <div class="card-body p-4">
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="form-group mb-3">
+                    <label for="name" class="form-label">Resource Name *</label>
+                    <input type="text" class="form-control" id="name" name="name" value="{{ resource.name }}" required>
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="description" class="form-label">Description</label>
+                    <textarea class="form-control" id="description" name="description" rows="3">{{ resource.description or '' }}</textarea>
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="resource_type" class="form-label">Resource Type *</label>
+                    <input type="text" class="form-control" id="resource_type" name="resource_type" value="{{ resource.resource_type }}" placeholder="e.g., room, hall, lab, equipment" required>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group mb-3">
+                            <label for="capacity" class="form-label">Capacity (People) *</label>
+                            <input type="number" class="form-control" id="capacity" name="capacity" value="{{ resource.capacity or '' }}" min="1" required>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group mb-3">
+                            <label for="hourly_rate" class="form-label">Hourly Rate ($) *</label>
+                            <input type="number" class="form-control" id="hourly_rate" name="hourly_rate" value="{{ resource.hourly_rate }}" step="0.01" min="0" required>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="location" class="form-label">Location</label>
+                    <input type="text" class="form-control" id="location" name="location" value="{{ resource.location or '' }}" placeholder="e.g., Building A, Room 101">
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <button type="submit" class="btn btn-primary w-100">Save Changes</button>
+                    </div>
+                    <div class="col-md-6">
+                        <a href="{{ url_for('admin.manage_resources') }}" class="btn btn-secondary w-100">Cancel</a>
+                    </div>
+                </div>
+            </form>
+
+            <hr class="my-4">
+
+            <div class="alert alert-info">
+                <strong>Current Status:</strong> 
+                {% if resource.is_available %}
+                    <span class="badge bg-success">Available</span>
+                {% else %}
+                    <span class="badge bg-danger">Unavailable</span>
+                {% endif %}
+                <p class="mb-0 mt-2">Use the "Make Available" or "Make Unavailable" button in the resources list to change availability.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

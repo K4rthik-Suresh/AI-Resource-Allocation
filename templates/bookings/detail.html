@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}Booking Details - Resource Booking System{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Booking Details</h4>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <h6 class="text-muted">Resource</h6>
+                        <p class="h5">{{ booking.resource.name }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-muted">Status</h6>
+                        <p>
+                            {% if booking.status == 'confirmed' %}
+                                <span class="badge bg-success">{{ booking.status.upper() }}</span>
+                            {% elif booking.status == 'pending' %}
+                                <span class="badge bg-warning">{{ booking.status.upper() }}</span>
+                            {% elif booking.status == 'cancelled' %}
+                                <span class="badge bg-danger">{{ booking.status.upper() }}</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ booking.status.upper() }}</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+
+                <hr>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <h6 class="text-muted">Booking Date</h6>
+                        <p class="h6">{{ booking.booking_date.strftime('%B %d, %Y') }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-muted">Booking Type</h6>
+                        <p class="h6">{{ booking.booking_type.upper() }}</p>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <h6 class="text-muted">Start Time</h6>
+                        <p class="h6">{{ booking.start_time.strftime('%H:%M') }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-muted">End Time</h6>
+                        <p class="h6">{{ booking.end_time.strftime('%H:%M') }}</p>
+                    </div>
+                </div>
+
+                <hr>
+
+                <div class="mb-3">
+                    <h6 class="text-muted">Purpose</h6>
+                    <p>{{ booking.purpose if booking.purpose else 'N/A' }}</p>
+                </div>
+
+                <!-- User Notes (Phase 1) -->
+                {% if booking.user_notes %}
+                <div class="mb-3 p-3 bg-light rounded border-left-info">
+                    <h6 class="text-muted mb-2"><i class="bi bi-pencil-square text-info"></i> Your Notes</h6>
+                    <p class="mb-0">{{ booking.user_notes }}</p>
+                </div>
+                {% endif %}
+
+                <!-- Admin Notes (Phase 1 - only visible to admin) -->
+                {% if current_user.is_authenticated and (current_user.role == 'admin' or current_user.role == 'staff') and booking.admin_notes %}
+                <div class="mb-3 p-3 bg-warning bg-opacity-10 rounded border border-warning">
+                    <h6 class="text-warning mb-2"><i class="bi bi-shield-exclamation"></i> Admin Notes (Private)</h6>
+                    <p class="mb-0 text-dark">{{ booking.admin_notes }}</p>
+                </div>
+                {% endif %}
+
+                <div class="mb-3">
+                    <h6 class="text-muted">Cost</h6>
+                    <p class="h5 text-primary">${{ "%.2f"|format(booking.cost) }}</p>
+                </div>
+
+                <hr>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <h6 class="text-muted">Booking ID</h6>
+                        <p class="text-monospace">{{ booking.id }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-muted">Created</h6>
+                        <p>{{ booking.created_at.strftime('%B %d, %Y at %H:%M') }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="mt-4 d-flex gap-2">
+            {% if booking.status != 'cancelled' %}
+                <form method="POST" action="{{ url_for('booking.cancel_booking', booking_id=booking.id) }}" style="display: inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to cancel this booking?');">
+                        <i class="bi bi-x-circle"></i> Cancel Booking
+                    </button>
+                </form>
+            {% endif %}
+            
+            <!-- Quick Rebook Button (Phase 1) -->
+            {% if booking.resource %}
+            <a href="{{ url_for('booking.create_booking', 
+                                resource_id=booking.resource.id,
+                                date=booking.booking_date.strftime('%Y-%m-%d') if booking.booking_date else '',
+                                start_time=booking.start_time.strftime('%H:%M') if booking.start_time else '',
+                                end_time=booking.end_time.strftime('%H:%M') if booking.end_time else '',
+                                duration_days=booking.duration_days if booking.duration_days else 1,
+                                purpose=booking.purpose if booking.purpose else '') }}" 
+               class="btn btn-info">
+                <i class="bi bi-arrow-repeat"></i> Quick Rebook (Same Resource)
+            </a>
+            {% endif %}
+            
+            <a href="{{ url_for('booking.dashboard') }}" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> Back to My Bookings
+            </a>
+        </div>
+    </div>
+
+    <!-- Resource Information Sidebar -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0">Resource Information</h5>
+            </div>
+            <div class="card-body">
+                <h6>{{ booking.resource.name }}</h6>
+                <p class="text-muted small">{{ booking.resource.description }}</p>
+
+                <div class="mb-3">
+                    <h6 class="text-muted">Capacity</h6>
+                    <p>{{ booking.resource.capacity }} people</p>
+                </div>
+
+                <div class="mb-3">
+                    <h6 class="text-muted">Hourly Rate</h6>
+                    <p>${{ "%.2f"|format(booking.resource.hourly_rate) }}</p>
+                </div>
+
+                <div class="mb-3">
+                    <h6 class="text-muted">Daily Rate</h6>
+                    <p>${{ "%.2f"|format(booking.resource.daily_rate) }}</p>
+                </div>
+
+                <div class="mb-3">
+                    <h6 class="text-muted">Monthly Rate</h6>
+                    <p>${{ "%.2f"|format(booking.resource.monthly_rate) }}</p>
+                </div>
+
+                <div class="mb-3">
+                    <h6 class="text-muted">Availability</h6>
+                    <p>
+                        {% if booking.resource.is_available %}
+                            <span class="badge bg-success">Available</span>
+                        {% else %}
+                            <span class="badge bg-danger">Not Available</span>
+                        {% endif %}
+                    </p>
+                </div>
+
+                <div>
+                    <h6 class="text-muted">Operating Hours</h6>
+                    <p>{{ booking.resource.availability_start.strftime('%H:%M') }} - {{ booking.resource.availability_end.strftime('%H:%M') }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

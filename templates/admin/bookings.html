@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Bookings - Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-5 px-4">
+    <div class="mb-4">
+        <h1 class="mb-3">Manage Bookings</h1>
+        <p class="text-muted">View and manage all resource bookings</p>
+    </div>
+    
+    <!-- Status Filter Buttons -->
+    <div class="mb-4 d-flex flex-wrap gap-2">
+        <a href="{{ url_for('admin.manage_bookings', status='all') }}" class="btn {% if status == 'all' %}btn-dark{% else %}btn-outline-dark{% endif %} btn-sm">
+            <i class="bi bi-list"></i> All
+        </a>
+        <a href="{{ url_for('admin.manage_bookings', status='pending') }}" class="btn {% if status == 'pending' %}btn-warning{% else %}btn-outline-warning{% endif %} btn-sm">
+            <i class="bi bi-clock-history"></i> Pending
+        </a>
+        <a href="{{ url_for('admin.manage_bookings', status='confirmed') }}" class="btn {% if status == 'confirmed' %}btn-success{% else %}btn-outline-success{% endif %} btn-sm">
+            <i class="bi bi-check-circle"></i> Confirmed
+        </a>
+        <a href="{{ url_for('admin.manage_bookings', status='cancelled') }}" class="btn {% if status == 'cancelled' %}btn-danger{% else %}btn-outline-danger{% endif %} btn-sm">
+            <i class="bi bi-x-circle"></i> Cancelled
+        </a>
+        <a href="{{ url_for('admin.manage_bookings', status='completed') }}" class="btn {% if status == 'completed' %}btn-primary{% else %}btn-outline-primary{% endif %} btn-sm">
+            <i class="bi bi-check-all"></i> Completed
+        </a>
+        <a href="{{ url_for('admin.manage_bookings', status='cancellation_requests') }}" class="btn btn-sm {% if status == 'cancellation_requests' %}text-white{% else %}{% endif %}" style="{% if status == 'cancellation_requests' %}background-color: #6f42c1; border-color: #6f42c1;{% else %}border-color: #6f42c1; color: #6f42c1;{% endif %}">
+            <i class="bi bi-exclamation-triangle"></i> Cancellation Requests
+        </a>
+    </div>
+    
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show mb-4" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Bookings Table -->
+    <div class="table-responsive bg-white rounded-3 shadow-sm">
+        <table class="table table-hover mb-0">
+            <thead class="bg-light border-bottom">
+                <tr>
+                    <th class="px-4 py-3 fw-600">ID</th>
+                    <th class="px-4 py-3 fw-600">User</th>
+                    <th class="px-4 py-3 fw-600">Resource</th>
+                    <th class="px-4 py-3 fw-600">Date</th>
+                    <th class="px-4 py-3 fw-600">Time</th>
+                    <th class="px-4 py-3 fw-600">Cost</th>
+                    <th class="px-4 py-3 fw-600">Status</th>
+                    <th class="px-4 py-3 fw-600 text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if bookings.items %}
+                    {% for booking in bookings.items %}
+                    <tr {% if booking.cancellation_requested %}class="table-light border-start border-4 border-warning"{% endif %}>
+                        <td class="px-4 py-3">
+                            <span class="badge bg-secondary">#{{ booking.id }}</span>
+                        </td>
+                        <td class="px-4 py-3">
+                            <div class="font-weight-500">{{ booking.user.username }}</div>
+                            <small class="text-muted">{{ booking.user.email }}</small>
+                        </td>
+                        <td class="px-4 py-3">{{ booking.resource.name }}</td>
+                        <td class="px-4 py-3">{{ booking.booking_date.strftime('%b %d, %Y') }}</td>
+                        <td class="px-4 py-3">{{ booking.start_time.strftime('%H:%M') }} - {{ booking.end_time.strftime('%H:%M') }}</td>
+                        <td class="px-4 py-3 fw-bold">${{ "%.2f"|format(booking.cost) }}</td>
+                        <td class="px-4 py-3">
+                            {% if booking.status == 'pending' %}
+                                <span class="badge bg-warning text-dark">
+                                    <i class="bi bi-clock"></i> Pending
+                                </span>
+                            {% elif booking.status == 'confirmed' %}
+                                <span class="badge bg-success">
+                                    <i class="bi bi-check-circle"></i> Confirmed
+                                </span>
+                            {% elif booking.status == 'cancelled' %}
+                                <span class="badge bg-danger">
+                                    <i class="bi bi-x-circle"></i> Cancelled
+                                </span>
+                            {% elif booking.status == 'completed' %}
+                                <span class="badge bg-primary">
+                                    <i class="bi bi-check-all"></i> Completed
+                                </span>
+                            {% endif %}
+                            {% if booking.cancellation_requested %}
+                                <br>
+                                <span class="badge bg-danger mt-1">
+                                    <i class="bi bi-exclamation-triangle"></i> Cancel Req
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            {% if booking.cancellation_requested %}
+                                <div class="btn-group-vertical w-100 gap-2">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#detailsModal{{ booking.id }}">
+                                        <i class="bi bi-eye"></i> View
+                                    </button>
+                                    <form method="POST" action="{{ url_for('admin.approve_cancellation', booking_id=booking.id) }}" class="m-0">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-sm btn-danger w-100" onclick="return confirm('Approve cancellation?')">
+                                            <i class="bi bi-check"></i> Approve
+                                        </button>
+                                    </form>
+                                    <form method="POST" action="{{ url_for('admin.reject_cancellation', booking_id=booking.id) }}" class="m-0">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-sm btn-secondary w-100" onclick="return confirm('Reject cancellation?')">
+                                            <i class="bi bi-x"></i> Reject
+                                        </button>
+                                    </form>
+                                </div>
+                            {% elif booking.status == 'pending' %}
+                                <div class="btn-group-vertical w-100 gap-2">
+                                    <form method="POST" action="{{ url_for('admin.confirm_booking', booking_id=booking.id) }}" class="m-0">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-sm btn-success w-100" onclick="return confirm('Confirm this booking?')">
+                                            <i class="bi bi-check-circle"></i> Confirm
+                                        </button>
+                                    </form>
+                                    <form method="POST" action="{{ url_for('admin.reject_booking', booking_id=booking.id) }}" class="m-0">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-sm btn-danger w-100" onclick="return confirm('Reject this booking?')">
+                                            <i class="bi bi-x-circle"></i> Reject
+                                        </button>
+                                    </form>
+                                </div>
+                            {% else %}
+                                <span class="text-muted small">No actions</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    
+                    <!-- Details Modal for Cancellation Requests -->
+                    {% if booking.cancellation_requested %}
+                    <div class="modal fade" id="detailsModal{{ booking.id }}" tabindex="-1">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content">
+                                <div class="modal-header bg-warning text-dark border-0">
+                                    <h5 class="modal-title fw-bold">
+                                        <i class="bi bi-exclamation-triangle"></i> Cancellation Request
+                                    </h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="row mb-3">
+                                        <div class="col-sm-4">
+                                            <strong>User</strong>
+                                        </div>
+                                        <div class="col-sm-8">
+                                            <span>{{ booking.user.username }}</span><br>
+                                            <small class="text-muted">{{ booking.user.email }}</small>
+                                        </div>
+                                    </div>
+                                    <div class="row mb-3">
+                                        <div class="col-sm-4">
+                                            <strong>Resource</strong>
+                                        </div>
+                                        <div class="col-sm-8">{{ booking.resource.name }}</div>
+                                    </div>
+                                    <div class="row mb-3">
+                                        <div class="col-sm-4">
+                                            <strong>Date</strong>
+                                        </div>
+                                        <div class="col-sm-8">{{ booking.booking_date.strftime('%b %d, %Y') }}</div>
+                                    </div>
+                                    <div class="row mb-3">
+                                        <div class="col-sm-4">
+                                            <strong>Time</strong>
+                                        </div>
+                                        <div class="col-sm-8">{{ booking.start_time.strftime('%H:%M') }} - {{ booking.end_time.strftime('%H:%M') }}</div>
+                                    </div>
+                                    <div class="row mb-3">
+                                        <div class="col-sm-4">
+                                            <strong>Cost</strong>
+                                        </div>
+                                        <div class="col-sm-8">${{ "%.2f"|format(booking.cost) }}</div>
+                                    </div>
+                                    <div class="row mb-3">
+                                        <div class="col-sm-4">
+                                            <strong>Requested</strong>
+                                        </div>
+                                        <div class="col-sm-8">{{ booking.cancellation_requested_at.strftime('%b %d, %Y %H:%M') if booking.cancellation_requested_at else 'N/A' }}</div>
+                                    </div>
+                                    <hr>
+                                    <div class="mb-3">
+                                        <strong class="d-block mb-2">Cancellation Reason</strong>
+                                        <div class="alert alert-light border">
+                                            {% if booking.cancellation_reason %}
+                                                {{ booking.cancellation_reason }}
+                                            {% else %}
+                                                <em class="text-muted">No reason provided</em>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer border-top gap-2">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                    <form method="POST" action="{{ url_for('admin.reject_cancellation', booking_id=booking.id) }}" style="display: inline;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-outline-secondary" onclick="return confirm('Reject this cancellation request?')">
+                                            <i class="bi bi-x"></i> Reject
+                                        </button>
+                                    </form>
+                                    <form method="POST" action="{{ url_for('admin.approve_cancellation', booking_id=booking.id) }}" style="display: inline;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-danger" onclick="return confirm('Approve this cancellation?')">
+                                            <i class="bi bi-check"></i> Approve Cancellation
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                {% else %}
+                <tr>
+                    <td colspan="8" class="text-center py-5">
+                        <p class="text-muted mb-0">No bookings found</p>
+                    </td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Pagination -->
+    {% if bookings.pages > 1 %}
+    <nav aria-label="Page navigation" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if bookings.has_prev %}
+            <li class="page-item"><a class="page-link" href="{{ url_for('admin.manage_bookings', status=status, page=bookings.prev_num) }}">Previous</a></li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">Previous</span></li>
+            {% endif %}
+            
+            {% for page_num in bookings.iter_pages() %}
+                {% if page_num %}
+                    {% if page_num == bookings.page %}
+                    <li class="page-item active"><span class="page-link">{{ page_num }}</span></li>
+                    {% else %}
+                    <li class="page-item"><a class="page-link" href="{{ url_for('admin.manage_bookings', status=status, page=page_num) }}">{{ page_num }}</a></li>
+                    {% endif %}
+                {% else %}
+                <li class="page-item disabled"><span class="page-link">...</span></li>
+                {% endif %}
+            {% endfor %}
+            
+            {% if bookings.has_next %}
+            <li class="page-item"><a class="page-link" href="{{ url_for('admin.manage_bookings', status=status, page=bookings.next_num) }}">Next</a></li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">Next</span></li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+
+<style>
+    .btn-group-vertical {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .table-light.border-start.border-4 {
+        background-color: #fff9e6;
+    }
+    
+    .rounded-3 {
+        border-radius: 12px;
+    }
+    
+    .fw-600 {
+        font-weight: 600;
+    }
+</style>
+{% endblock %}

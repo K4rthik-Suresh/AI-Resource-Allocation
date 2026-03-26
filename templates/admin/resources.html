@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Resources - Admin{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Manage Resources</h1>
+        <a href="{{ url_for('admin.create_resource') }}" class="btn btn-primary">Add New Resource</a>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Capacity</th>
+                    <th>Location</th>
+                    <th>Hourly Rate</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for resource in resources.items %}
+                <tr>
+                    <td>{{ resource.name }}</td>
+                    <td>{{ resource.resource_type or '-' }}</td>
+                    <td>{{ resource.capacity }}</td>
+                    <td>{{ resource.location or '-' }}</td>
+                    <td>${{ "%.2f"|format(resource.hourly_rate) }}</td>
+                    <td>
+                        {% if resource.is_available %}
+                            <span class="badge bg-success">Available</span>
+                        {% else %}
+                            <span class="badge bg-danger">Unavailable</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="d-flex flex-wrap gap-2">
+                            <a href="{{ url_for('admin.edit_resource', resource_id=resource.id) }}" class="btn btn-sm btn-warning">Edit</a>
+                            
+                            <form method="POST" action="{{ url_for('admin.toggle_availability', resource_id=resource.id) }}" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-sm btn-info">
+                                    {% if resource.is_available %}
+                                        Unavailable
+                                    {% else %}
+                                        Available
+                                    {% endif %}
+                                </button>
+                            </form>
+                            
+                            <form method="POST" action="{{ url_for('admin.delete_resource', resource_id=resource.id) }}" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this resource?');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Pagination -->
+    <nav aria-label="Page navigation">
+        <ul class="pagination">
+            {% if resources.has_prev %}
+            <li class="page-item"><a class="page-link" href="{{ url_for('admin.manage_resources', page=resources.prev_num) }}">Previous</a></li>
+            {% endif %}
+            
+            {% for page_num in resources.iter_pages() %}
+                {% if page_num %}
+                    {% if page_num == resources.page %}
+                    <li class="page-item active"><span class="page-link">{{ page_num }}</span></li>
+                    {% else %}
+                    <li class="page-item"><a class="page-link" href="{{ url_for('admin.manage_resources', page=page_num) }}">{{ page_num }}</a></li>
+                    {% endif %}
+                {% endif %}
+            {% endfor %}
+            
+            {% if resources.has_next %}
+            <li class="page-item"><a class="page-link" href="{{ url_for('admin.manage_resources', page=resources.next_num) }}">Next</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>
+{% endblock %}

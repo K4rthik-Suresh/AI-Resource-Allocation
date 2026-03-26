@@ -1,0 +1,405 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics & Reports - Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4 mb-5">
+    <!-- Page Header -->
+    <div class="page-header fade-in-up mb-4">
+        <h1 class="page-title">
+            <i class="bi bi-graph-up"></i> Analytics & Reports
+        </h1>
+        <p class="page-subtitle">Comprehensive booking and resource performance analytics</p>
+    </div>
+
+    <!-- KPI CARDS ROW -->
+    <div class="row g-4 mb-4 fade-in-up">
+        <div class="col-md-6 col-lg-3">
+            <div class="admin-stat-card stat-primary">
+                <div class="stat-icon">
+                    <i class="bi bi-calendar-check"></i>
+                </div>
+                <div class="stat-content">
+                    <h6 class="stat-label">Total Bookings (30 Days)</h6>
+                    <h2 class="stat-number">{{ kpis.total_bookings }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3">
+            <div class="admin-stat-card stat-success">
+                <div class="stat-icon">
+                    <i class="bi bi-currency-dollar"></i>
+                </div>
+                <div class="stat-content">
+                    <h6 class="stat-label">Total Revenue (30 Days)</h6>
+                    <h2 class="stat-number">${{ "%.2f"|format(kpis.total_revenue) }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3">
+            <div class="admin-stat-card stat-warning">
+                <div class="stat-icon">
+                    <i class="bi bi-clock"></i>
+                </div>
+                <div class="stat-content">
+                    <h6 class="stat-label">Bookings Today</h6>
+                    <h2 class="stat-number">{{ kpis.bookings_today }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3">
+            <div class="admin-stat-card stat-info">
+                <div class="stat-icon">
+                    <i class="bi bi-activity"></i>
+                </div>
+                <div class="stat-content">
+                    <h6 class="stat-label">Active Bookings</h6>
+                    <h2 class="stat-number">{{ kpis.active_bookings }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MONTHLY BOOKINGS CHART -->
+    <div class="admin-panel mb-4 fade-in-up">
+        <div class="admin-panel-header">
+            <h5><i class="bi bi-bar-chart"></i> Bookings Trend (Last 12 Months)</h5>
+        </div>
+        <div class="admin-panel-body">
+            <div style="position: relative; height: 300px; width: 100%;">
+                <canvas id="monthlyChart"></canvas>
+            </div>
+            <!-- Table fallback for monthly data -->
+            <div class="mt-4">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                {% for item in monthly_bookings %}
+                                <th class="text-center small">{{ item.month }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                {% for item in monthly_bookings %}
+                                <td class="text-center">
+                                    <span class="badge {% if item.bookings > 0 %}bg-primary{% else %}bg-secondary{% endif %}">{{ item.bookings }}</span>
+                                </td>
+                                {% endfor %}
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOP INSIGHTS SECTION -->
+    <div class="row g-4 mb-4 fade-in-up">
+        <!-- MOST BOOKED ROOMS -->
+        <div class="col-lg-6">
+            <div class="admin-panel h-100">
+                <div class="admin-panel-header">
+                    <h5><i class="bi bi-star-fill"></i> Most Booked Rooms</h5>
+                </div>
+                <div class="admin-panel-body">
+                    {% if most_booked_rooms and most_booked_rooms|length > 0 %}
+                        <div class="list-group list-group-flush">
+                            {% for room in most_booked_rooms %}
+                                <div class="list-group-item px-0 py-3 border-bottom d-flex justify-content-between align-items-center">
+                                    <span class="fw-500">{{ room.name }}</span>
+                                    <span class="badge bg-primary">{{ room.bookings }} bookings</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center py-4">No booking data available</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- LEAST BOOKED ROOMS -->
+        <div class="col-lg-6">
+            <div class="admin-panel h-100">
+                <div class="admin-panel-header">
+                    <h5><i class="bi bi-exclamation-circle"></i> Least Booked Rooms</h5>
+                </div>
+                <div class="admin-panel-body">
+                    {% if least_booked_rooms and least_booked_rooms|length > 0 %}
+                        <div class="list-group list-group-flush">
+                            {% for room in least_booked_rooms %}
+                                <div class="list-group-item px-0 py-3 border-bottom d-flex justify-content-between align-items-center">
+                                    <span class="fw-500">{{ room.name }}</span>
+                                    <span class="badge bg-secondary">{{ room.bookings }} bookings</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center py-4">No data available</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SEARCH PATTERNS -->
+    <div class="row g-4 mb-4 fade-in-up">
+        <!-- MOST SEARCHED ROOM TYPES -->
+        <div class="col-lg-6">
+            <div class="admin-panel h-100">
+                <div class="admin-panel-header">
+                    <h5><i class="bi bi-search"></i> Most Searched Room Types</h5>
+                </div>
+                <div class="admin-panel-body">
+                    {% if resource_types_data and resource_types_data|length > 0 %}
+                        <div class="list-group list-group-flush">
+                            {% for rt in resource_types_data %}
+                                <div class="list-group-item px-0 py-3 border-bottom d-flex justify-content-between align-items-center">
+                                    <span class="fw-500">{{ rt.type or 'Unknown' }}</span>
+                                    <span class="badge bg-info">{{ rt.count }} bookings</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center py-4">No search data available</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- MOST SEARCHED CAPACITY -->
+        <div class="col-lg-6">
+            <div class="admin-panel h-100">
+                <div class="admin-panel-header">
+                    <h5><i class="bi bi-people-fill"></i> Most Searched Capacity</h5>
+                </div>
+                <div class="admin-panel-body">
+                    {% if capacity_data and capacity_data|length > 0 %}
+                        <div class="list-group list-group-flush">
+                            {% for cap in capacity_data %}
+                                <div class="list-group-item px-0 py-3 border-bottom d-flex justify-content-between align-items-center">
+                                    <span class="fw-500">{{ cap.capacity }} People</span>
+                                    <span class="badge bg-success">{{ cap.count }} searches</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center py-4">No data available</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TIME SLOTS ANALYSIS -->
+    <div class="admin-panel mb-4 fade-in-up">
+        <div class="admin-panel-header">
+            <h5><i class="bi bi-clock"></i> Most Popular Time Slots</h5>
+        </div>
+        <div class="admin-panel-body">
+            {% if time_slots_data and time_slots_data|length > 0 %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Time Slot</th>
+                                <th class="text-end">Number of Bookings</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for slot in time_slots_data %}
+                                <tr>
+                                    <td class="fw-500">{{ slot.time }}</td>
+                                    <td class="text-end">
+                                        <span class="badge bg-info">{{ slot.count }}</span>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-muted text-center py-4">No time slot data available</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- DAILY BOOKINGS TABLE -->
+    <div class="admin-panel mb-4 fade-in-up">
+        <div class="admin-panel-header">
+            <h5><i class="bi bi-calendar3"></i> Daily Bookings (Last 30 Days)</h5>
+        </div>
+        <div class="admin-panel-body">
+            {% if daily_bookings and daily_bookings|length > 0 %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date</th>
+                                <th class="text-center">Number of Bookings</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for booking in daily_bookings %}
+                                <tr>
+                                    <td>{{ booking.date }}</td>
+                                    <td class="text-center">
+                                        <span class="badge bg-primary">{{ booking.bookings }}</span>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-muted text-center py-4">No booking data available</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- RESOURCE PERFORMANCE CARDS -->
+    <div class="admin-panel fade-in-up">
+        <div class="admin-panel-header">
+            <h5><i class="bi bi-speedometer2"></i> Resource Performance (30 Days)</h5>
+        </div>
+        <div class="admin-panel-body">
+            <div class="row g-4">
+                {% if resource_stats and resource_stats|length > 0 %}
+                    {% for resource in resource_stats %}
+                        <div class="col-12 col-md-6 col-lg-4">
+                            <div class="card border-1 rounded-2 h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title fw-bold">{{ resource.name }}</h6>
+                                    <p class="text-muted small mb-3">{{ resource.resource_type }}</p>
+                                    
+                                    <div class="mb-3 pb-3 border-bottom">
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span class="small text-muted">Capacity</span>
+                                            <span class="small fw-bold">{{ resource.capacity }}</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span class="small text-muted">Hourly Rate</span>
+                                            <span class="small fw-bold">${{ "%.2f"|format(resource.hourly_rate) }}</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <span class="small text-muted">Bookings</span>
+                                            <span class="badge bg-primary">{{ resource.bookings }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="col-12">
+                        <p class="text-muted text-center py-4">No resources found</p>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- PAGINATION -->
+            {% if resources_paginated and resources_paginated.pages > 1 %}
+                <div class="d-flex justify-content-center mt-5">
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination">
+                            {% if resources_paginated.has_prev %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('admin.analytics', page=resources_paginated.prev_num) }}">← Previous</a>
+                                </li>
+                            {% endif %}
+
+                            {% for page_num in resources_paginated.iter_pages() %}
+                                {% if page_num %}
+                                    {% if page_num == resources_paginated.page %}
+                                        <li class="page-item active">
+                                            <span class="page-link">{{ page_num }}</span>
+                                        </li>
+                                    {% else %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="{{ url_for('admin.analytics', page=page_num) }}">{{ page_num }}</a>
+                                        </li>
+                                    {% endif %}
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if resources_paginated.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('admin.analytics', page=resources_paginated.next_num) }}">Next →</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- CHARTS SCRIPTS -->
+<script>
+    window.onload = function() {
+        // Check if Chart.js is available
+        if (typeof Chart === 'undefined') {
+            console.error("[v0] Chart.js is not loaded!");
+            return;
+        }
+        
+        // Monthly Bookings Chart
+        const monthlyData = {{ monthly_bookings|tojson|safe }};
+        const monthlyCtx = document.getElementById('monthlyChart');
+        
+        if (monthlyCtx && monthlyData && monthlyData.length > 0) {
+            try {
+                new Chart(monthlyCtx.getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: monthlyData.map(function(d) { return d.month; }),
+                        datasets: [{
+                            label: 'Bookings',
+                            data: monthlyData.map(function(d) { return d.bookings; }),
+                            borderColor: '#0066cc',
+                            backgroundColor: 'rgba(0, 102, 204, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: true,
+                            pointRadius: 5,
+                            pointBackgroundColor: '#0066cc',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: true, position: 'top' }
+                        },
+                        scales: {
+                            y: { beginAtZero: true }
+                        }
+                    }
+                });
+            } catch (e) {
+                console.error("[v0] Error creating monthly chart:", e);
+            }
+        }
+    };
+</script>
+
+<style>
+    .card {
+        transition: box-shadow 0.3s ease;
+    }
+    .card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12) !important;
+    }
+    .rounded-3 {
+        border-radius: 12px;
+    }
+    .fw-500 {
+        font-weight: 500;
+    }
+</style>
+{% endblock %}

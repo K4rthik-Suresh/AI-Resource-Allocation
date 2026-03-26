@@ -1,0 +1,374 @@
+{% extends "base.html" %}
+
+{% block title %}My Bookings - AI Resource Booking{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <!-- Modern header with gradient -->
+    <div class="d-flex justify-content-between align-items-center mb-4 gap-2">
+        <div>
+            <h1 class="mb-1" style="font-size: 2.5rem; font-weight: 700; background: linear-gradient(135deg, #5B23FF 0%, #008BFF 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                My Bookings
+            </h1>
+            <p class="text-muted mb-0">Manage and create your resource bookings</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('booking.create_booking') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> New Booking
+            </a>
+            <!-- Phase 1: CSV Export Button -->
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-download"></i> Export
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="{{ url_for('export.export_bookings_csv') }}">
+                        <i class="bi bi-file-earmark-csv"></i> Export All My Bookings
+                    </a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('export.export_bookings_csv') }}?status=confirmed">
+                        <i class="bi bi-check-circle"></i> Export Confirmed Only
+                    </a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" data-bs-toggle="modal" href="#exportFilterModal">
+                        <i class="bi bi-funnel"></i> Advanced Export Filters...
+                    </a></li>
+                </ul>
+            </div>
+            <!-- Phase 1: Favorites Button -->
+            <a href="{{ url_for('favorites.view_favorites') }}" class="btn btn-outline-warning">
+                <i class="bi bi-star-fill"></i> My Favorites
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- System Announcements (Phase 1) -->
+{% set announcements = [] %}
+<!-- Will be populated via AJAX -->
+<div id="announcements-container" class="mb-4">
+    <!-- Announcements will load here -->
+</div>
+
+<!-- Moved Smart Booking Search to the top -->
+<div class="card mb-4 shadow-sm border-0">
+    <div class="card-body p-4">
+        <div class="mb-3">
+            <h5 class="mb-2" style="color: #5B23FF;">
+                <i class="bi bi-chat-dots-fill"></i> Smart Booking Search
+            </h5>
+            <p class="text-muted small mb-0">
+                Describe what you need in natural language - dates, times, capacity, resource types
+            </p>
+        </div>
+        
+        <form method="POST" action="{{ url_for('booking.search') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="input-group mb-3">
+                <span class="input-group-text">
+                    <i class="bi bi-search"></i>
+                </span>
+                <input type="text" 
+                       name="search_query" 
+                       class="form-control" 
+                       placeholder="e.g., 'I need a conference room for 15 people tomorrow afternoon'" 
+                       required>
+                <button class="btn btn-primary" type="submit" style="min-width: 120px;">
+                    <i class="bi bi-search"></i> Search
+                </button>
+            </div>
+        </form>
+        
+        <div class="small text-muted">
+            <strong>Try examples:</strong> "badminton court tomorrow", "meeting room for 20 people", "chemistry lab next week"
+        </div>
+    </div>
+</div>
+
+<!-- Only show bookings table if user has bookings -->
+{% if bookings.items %}
+<!-- Modern bookings table -->
+<div class="card fade-in-up mb-4">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th><i class="bi bi-box-seam"></i> Resource</th>
+                        <th><i class="bi bi-calendar-event"></i> Date</th>
+                        <th><i class="bi bi-calendar-range"></i> Duration</th>
+                        <th><i class="bi bi-clock"></i> Time</th>
+                        <th><i class="bi bi-tag"></i> Status</th>
+                        <th><i class="bi bi-currency-dollar"></i> Cost</th>
+                        <th><i class="bi bi-gear"></i> Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for booking in bookings.items %}
+                        <tr>
+                            <td>{{ booking.resource.name }}</td>
+                            <td>{{ booking.booking_date }}</td>
+                            <td>
+                                {% if booking.duration_days == 1 %}
+                                    <span class="badge bg-info">1 day</span>
+                                {% else %}
+                                    <span class="badge bg-info">{{ booking.duration_days }} days</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ booking.start_time|format_time_range(booking.end_time) }}</td>
+                            <td>
+                                <span class="badge badge-{% if booking.status == 'confirmed' %}success{% elif booking.status == 'pending' %}warning{% elif booking.status == 'completed' %}primary{% else %}danger{% endif %}">
+                                    {{ booking.status|upper }}
+                                </span>
+                                {% if booking.cancellation_requested %}
+                                    <span class="badge badge-danger ms-1">
+                                        <i class="bi bi-exclamation-triangle"></i> CANCEL PENDING
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td>${{ "%.3f"|format(booking.cost) }}</td>
+                            <td>
+                                <a href="{{ url_for('booking.view_booking', booking_id=booking.id) }}" class="btn btn-sm btn-secondary" title="View">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                {% if booking.status != 'cancelled' %}
+                                    {% if booking.status == 'confirmed' %}
+                                        {% if not booking.cancellation_requested %}
+                                            <button type="button" class="btn btn-sm btn-warning" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#cancelRequestModal{{ booking.id }}"
+                                                    title="Request Cancellation">
+                                                <i class="bi bi-exclamation-circle"></i>
+                                            </button>
+                                        {% else %}
+                                            <button type="button" class="btn btn-sm btn-secondary" disabled title="Cancellation Requested">
+                                                <i class="bi bi-hourglass-split"></i>
+                                            </button>
+                                        {% endif %}
+                                    {% else %}
+                                        <form method="POST" action="{{ url_for('booking.cancel_booking', booking_id=booking.id) }}" style="display:inline;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Cancel this booking?')" title="Cancel">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        
+                        <div class="modal fade" id="cancelRequestModal{{ booking.id }}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Request Cancellation</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <form method="POST" action="{{ url_for('booking.cancel_booking', booking_id=booking.id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <div class="modal-body">
+                                            <div class="alert alert-warning">
+                                                <i class="bi bi-info-circle"></i> This booking is confirmed. Your cancellation request will be sent to an admin for approval.
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Reason for Cancellation (Optional)</label>
+                                                <textarea class="form-control" name="reason" rows="3" placeholder="Please provide a reason for cancellation..."></textarea>
+                                            </div>
+                                            <p class="small text-muted">
+                                                <strong>Booking Details:</strong><br>
+                                                Resource: {{ booking.resource.name }}<br>
+                                                Date: {{ booking.booking_date }}<br>
+                                                Time: {{ booking.start_time|format_time_range(booking.end_time) }}
+                                            </p>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                            <button type="submit" class="btn btn-warning">Submit Request</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% else %}
+<!-- Updated empty state with colorful design and new message -->
+<div class="card fade-in-up mb-4 border-0 shadow-sm" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);">
+    <div class="card-body text-center py-5">
+        <div class="mb-4">
+            <i class="bi bi-rocket-takeoff" style="font-size: 5rem; color: white;"></i>
+        </div>
+        <h3 class="mb-3 fw-bold" style="color: white; text-shadow: 2px 2px 4px rgba(0,0,0,0.2);">
+            START YOUR BOOKING JOURNEY
+        </h3>
+        <p class="mb-4" style="color: rgba(255,255,255,0.95); font-size: 1.1rem; max-width: 500px; margin: 0 auto;">
+            Begin exploring our resources and make your first booking today. Your perfect space is waiting!
+        </p>
+        <a href="{{ url_for('booking.create_booking') }}" class="btn btn-light btn-lg shadow-sm" style="border-radius: 50px; padding: 12px 32px; font-weight: 600;">
+            <i class="bi bi-plus-circle-fill"></i> Create Your First Booking
+        </a>
+    </div>
+</div>
+{% endif %}
+
+<div id="searchResults" style="display:none;"></div>
+
+<script>
+console.log('[v0] Search script loaded');
+
+function displayResults(data) {
+    const resultsDiv = document.getElementById('searchResults');
+    const resources = data.matched_resources || [];
+    const params = data.booking_params || {};
+    
+    if (resources.length === 0) {
+        resultsDiv.innerHTML = '<div class="alert alert-warning">No matching resources found. Try adjusting your search.</div>';
+        return;
+    }
+    
+    let html = `<div class="alert alert-success mb-3">
+        <h6><i class="bi bi-check-circle"></i> Found ${resources.length} Resources</h6>`;
+    
+    if (params.date) html += `<span class="badge bg-info me-1"><i class="bi bi-calendar"></i> ${params.date}</span>`;
+    if (params.participants) html += `<span class="badge bg-info me-1"><i class="bi bi-people"></i> ${params.participants}+ people</span>`;
+    if (params.resource_type) html += `<span class="badge bg-info me-1">${params.resource_type}</span>`;
+    
+    html += '</div><div class="row">';
+    
+    resources.forEach(resource => {
+        const borderColor = resource.is_best_match ? '#28a745' : '#dee2e6';
+        const bestBadge = resource.is_best_match ? 
+            '<div class="badge bg-success mb-2"><i class="bi bi-star-fill"></i> BEST MATCH</div>' : '';
+        
+        html += `
+            <div class="col-md-4 mb-3">
+                <div class="card h-100" style="border: 2px solid ${borderColor};">
+                    <div class="card-body">
+                        ${bestBadge}
+                        <h6>${resource.name}</h6>
+                        <div class="mb-2">
+                            <span class="badge bg-primary">${resource.type}</span>
+                            ${resource.capacity ? `<span class="badge bg-info">Cap: ${resource.capacity}</span>` : ''}
+                        </div>
+                        <p class="small text-muted mb-2"><i class="bi bi-geo-alt"></i> ${resource.location}</p>
+                        ${resource.match_reasons ? `
+                            <div class="small text-success mb-2">
+                                ${resource.match_reasons.map(r => `<div><i class="bi bi-check"></i> ${r}</div>`).join('')}
+                            </div>
+                        ` : ''}
+                        <p class="text-success fw-bold mb-2">$${resource.hourly_rate}/hour</p>
+                        <a href="/bookings/create?resource_id=${resource.id}" class="btn btn-primary btn-sm w-100">
+                            <i class="bi bi-calendar-check"></i> Book Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    resultsDiv.innerHTML = html;
+    
+    console.log('[v0] Results displayed!');
+}
+</script>
+
+<!-- Stat Cards with modern design -->
+<div class="row mb-4 fade-in-up">
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="stat-card">
+            <h6><i class="bi bi-calendar2"></i> Total Bookings</h6>
+            <h3>{{ stats.total_bookings }}</h3>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="stat-card">
+            <h6><i class="bi bi-check-circle"></i> Confirmed</h6>
+            <h3>{{ stats.confirmed }}</h3>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="stat-card">
+            <h6><i class="bi bi-clock"></i> Pending</h6>
+            <h3>{{ stats.pending }}</h3>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="stat-card">
+            <h6><i class="bi bi-wallet2"></i> Total Spent</h6>
+            <!-- Format total spent to 3 decimal places -->
+            <h3>${{ "%.3f"|format(stats.total_spent) }}</h3>
+        </div>
+    </div>
+</div>
+
+<!-- Recommended Resources section -->
+{% if suggestions and suggestions|length > 0 %}
+<div class="mb-4 fade-in-up">
+    <h5 class="mb-3"><i class="bi bi-star"></i> Recommended For You</h5>
+    <!-- Grid showing 3 columns for recommended resources -->
+    <div class="row">
+        {% for suggestion in suggestions %}
+        <div class="col-md-4 mb-3">
+            <div class="recommendation-card">
+                <div class="resource-name"><i class="bi bi-box-seam"></i> {{ suggestion.name }}</div>
+                <div class="resource-type">{{ suggestion.resource_type }}</div>
+                <div class="resource-info">
+                    <div>
+                        <small class="text-muted"><i class="bi bi-people"></i> Capacity: {{ suggestion.capacity or 'N/A' }}</small>
+                    </div>
+                </div>
+                <div class="price mb-3"><i class="bi bi-currency-dollar"></i> {{ suggestion.hourly_rate or 'Contact' }}/hr</div>
+                <p class="small text-primary mb-3"><i class="bi bi-info-circle"></i> {{ suggestion.reason or 'Popular choice' }}</p>
+                <!-- Updated booking button to use GET with resource_id parameter -->
+                <a href="{{ url_for('booking.create_booking', resource_id=suggestion.id) }}" class="btn btn-primary w-100">
+                    <i class="bi bi-arrow-right"></i> Book Now
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<script>
+// Load announcements on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadAnnouncements();
+    // Refresh announcements every 5 minutes
+    setInterval(loadAnnouncements, 300000);
+});
+
+function loadAnnouncements() {
+    fetch('/announcements/')
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('announcements-container');
+            container.innerHTML = '';
+            
+            if (data.announcements && data.announcements.length > 0) {
+                data.announcements.forEach(ann => {
+                    const badgeColor = ann.type === 'warning' ? 'warning' :
+                                      ann.type === 'maintenance' ? 'secondary' :
+                                      ann.type === 'alert' ? 'danger' : 'info';
+                    
+                    const announcementHTML = `
+                        <div class="alert alert-${badgeColor} alert-dismissible fade show mb-3" role="alert">
+                            <strong><i class="bi bi-megaphone-fill"></i> ${ann.title}</strong>
+                            <hr>
+                            <p class="mb-1">${ann.message}</p>
+                            <small class="text-muted">Posted: ${ann.created_at}${ann.expires_at ? ' | Expires: ' + ann.expires_at : ''}</small>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    `;
+                    container.innerHTML += announcementHTML;
+                });
+            }
+        })
+        .catch(error => console.error('Error loading announcements:', error));
+}
+</script>
+{% endblock %}

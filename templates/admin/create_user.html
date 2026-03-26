@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Create New User - Admin{% endblock %}
+
+{% block content %}
+<div class="container mt-5" style="max-width: 500px;">
+    <div class="mb-4">
+        <h1>Create New User</h1>
+        <p class="text-muted">Add a new user account to the system</p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="card">
+        <div class="card-body p-4">
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="form-group mb-3">
+                    <label for="username" class="form-label">Username *</label>
+                    <input type="text" class="form-control" id="username" name="username" placeholder="Enter username" minlength="3" required>
+                    <small class="text-muted d-block mt-1">At least 3 characters</small>
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="password" class="form-label">Password *</label>
+                    <input type="password" class="form-control" id="password" name="password" placeholder="Enter password" minlength="6" required>
+                    <small class="text-muted d-block mt-1">At least 6 characters</small>
+                </div>
+
+                <div class="form-group mb-4">
+                    <label for="password_confirm" class="form-label">Confirm Password *</label>
+                    <input type="password" class="form-control" id="password_confirm" name="password_confirm" placeholder="Confirm password" minlength="6" required>
+                </div>
+
+                <div class="alert alert-info mb-4">
+                    <small><strong>Note:</strong> Default email will be set as username@resourcebooking.com. Users can update this later from their profile.</small>
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary btn-lg">Create User</button>
+                    <a href="{{ url_for('admin.manage_users') }}" class="btn btn-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+
+# Virtual environments
+venv/
+env/
+.venv/
+spacy_env/
+
+# Environment variables - NEVER commit this
+.env
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+instance/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.code-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Docker
+docker-compose.override.yml
+
+# Node (unused but present)
+node_modules/

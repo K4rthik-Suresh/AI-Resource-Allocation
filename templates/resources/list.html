@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}Browse Resources - Resource Booking System{% endblock %}
+
+{% block content %}
+<!-- Modern hero section with search -->
+<div class="page-header fade-in-up mb-5">
+    <h1 class="page-title">
+        <i class="bi bi-grid-3x3-gap"></i> Discover Resources
+    </h1>
+    <p class="page-subtitle">Browse and book from 50+ available resources</p>
+</div>
+
+<!-- Enhanced search filters with modern design -->
+<div class="search-filters-card fade-in-up mb-4">
+    <form method="GET" class="row g-3">
+        <div class="col-md-3">
+            <div class="search-input-wrapper">
+                <i class="bi bi-search search-icon"></i>
+                <input type="text" class="form-control search-input" name="search" 
+                       placeholder="Search resources..." 
+                       value="{{ request.args.get('search', '') }}">
+            </div>
+        </div>
+        <div class="col-md-2">
+            <select class="form-select" name="type">
+                <option value="">All Categories</option>
+                <option value="Conference Rooms" {% if request.args.get('type') == 'Conference Rooms' %}selected{% endif %}>Conference Rooms</option>
+                <option value="Laboratories" {% if request.args.get('type') == 'Laboratories' %}selected{% endif %}>Laboratories</option>
+                <option value="Auditoriums" {% if request.args.get('type') == 'Auditoriums' %}selected{% endif %}>Auditoriums</option>
+                <option value="Entertainment" {% if request.args.get('type') == 'Entertainment' %}selected{% endif %}>Entertainment</option>
+                <option value="Sports Facilities" {% if request.args.get('type') == 'Sports Facilities' %}selected{% endif %}>Sports Facilities</option>
+                <option value="Creative Studios" {% if request.args.get('type') == 'Creative Studios' %}selected{% endif %}>Creative Studios</option>
+                <option value="Study Spaces" {% if request.args.get('type') == 'Study Spaces' %}selected{% endif %}>Study Spaces</option>
+                <option value="Outdoor Spaces" {% if request.args.get('type') == 'Outdoor Spaces' %}selected{% endif %}>Outdoor Spaces</option>
+                <option value="Equipment" {% if request.args.get('type') == 'Equipment' %}selected{% endif %}>Equipment</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <select class="form-select" name="capacity">
+                <option value="">Any Capacity</option>
+                <option value="1-10" {% if request.args.get('capacity') == '1-10' %}selected{% endif %}>1-10 people</option>
+                <option value="11-25" {% if request.args.get('capacity') == '11-25' %}selected{% endif %}>11-25 people</option>
+                <option value="26-50" {% if request.args.get('capacity') == '26-50' %}selected{% endif %}>26-50 people</option>
+                <option value="51-100" {% if request.args.get('capacity') == '51-100' %}selected{% endif %}>51-100 people</option>
+                <option value="100+" {% if request.args.get('capacity') == '100+' %}selected{% endif %}>100+ people</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <select class="form-select" name="price_range">
+                <option value="">Any Price</option>
+                <option value="0-50" {% if request.args.get('price_range') == '0-50' %}selected{% endif %}>$0-$50/hr</option>
+                <option value="51-100" {% if request.args.get('price_range') == '51-100' %}selected{% endif %}>$51-$100/hr</option>
+                <option value="101-200" {% if request.args.get('price_range') == '101-200' %}selected{% endif %}>$101-$200/hr</option>
+                <option value="200+" {% if request.args.get('price_range') == '200+' %}selected{% endif %}>$200+/hr</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <select class="form-select" name="sort">
+                <option value="">Sort By</option>
+                <option value="name" {% if request.args.get('sort') == 'name' %}selected{% endif %}>Name</option>
+                <option value="price_low" {% if request.args.get('sort') == 'price_low' %}selected{% endif %}>Price: Low to High</option>
+                <option value="price_high" {% if request.args.get('sort') == 'price_high' %}selected{% endif %}>Price: High to Low</option>
+                <option value="capacity" {% if request.args.get('sort') == 'capacity' %}selected{% endif %}>Capacity</option>
+            </select>
+        </div>
+        <div class="col-md-1">
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-funnel"></i> Filter
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Modern resource grid with enhanced cards -->
+<div class="row g-4">
+    {% for resource in resources.items %}
+        <div class="col-lg-4 col-md-6 fade-in-up" style="animation-delay: {{ loop.index0 * 0.1 }}s;">
+            <div class="resource-card">
+                <div class="resource-card-header">
+                    <div class="resource-icon">
+                        <i class="bi bi-{% if 'Conference Rooms' in resource.resource_type %}briefcase{% elif 'Laboratories' in resource.resource_type %}flask{% elif 'Auditoriums' in resource.resource_type %}megaphone{% elif 'Entertainment' in resource.resource_type %}controller{% elif 'Sports Facilities' in resource.resource_type %}trophy{% elif 'Creative Studios' in resource.resource_type %}camera-video{% elif 'Study Spaces' in resource.resource_type %}book{% elif 'Outdoor Spaces' in resource.resource_type %}tree{% else %}box{% endif %}"></i>
+                    </div>
+                    <span class="resource-badge">{{ resource.resource_type }}</span>
+                    <!-- Phase 1: Favorite Button - Simple Form -->
+                    {% if current_user.is_authenticated %}
+                    <form method="POST" action="/bookings/favorites/toggle/{{ resource.id }}" style="display: inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <button type="submit" class="btn btn-sm btn-link ms-auto" 
+                                title="Toggle favorite"
+                                style="background: none; border: none; padding: 4px 8px;">
+                            <i class="bi bi-star {% if current_user in resource.favorited_by %}bi-star-fill text-warning{% endif %}"></i>
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+                
+                <div class="resource-card-body">
+                    <h5 class="resource-card-title">{{ resource.name }}</h5>
+                    <p class="resource-card-description">
+                        {{ resource.description[:120] }}{% if resource.description|length > 120 %}...{% endif %}
+                    </p>
+                    
+                    <div class="resource-details">
+                        <div class="resource-detail-item">
+                            <i class="bi bi-geo-alt"></i>
+                            <span>{{ resource.location }}</span>
+                        </div>
+                        {% if resource.capacity %}
+                        <div class="resource-detail-item">
+                            <i class="bi bi-people"></i>
+                            <span>{{ resource.capacity }} people</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="resource-price">
+                        <span class="price-label">Starting at</span>
+                        <span class="price-value">${{ resource.hourly_rate }}<span class="price-unit">/hour</span></span>
+                    </div>
+                </div>
+                
+                <div class="resource-card-footer">
+                    <a href="{{ url_for('resource.view_resource', resource_id=resource.id) }}" class="btn btn-primary w-100">
+                        <i class="bi bi-calendar-check"></i> View & Book
+                    </a>
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+</div>
+
+<!-- Modern pagination -->
+{% if resources.pages > 1 %}
+<nav aria-label="Page navigation" class="mt-5">
+    <ul class="pagination justify-content-center">
+        {% if resources.has_prev %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('resource.list_resources', page=resources.prev_num, search=request.args.get('search', ''), type=request.args.get('type', ''), capacity=request.args.get('capacity', ''), price_range=request.args.get('price_range', ''), sort=request.args.get('sort', '')) }}">
+                    <i class="bi bi-chevron-left"></i> Previous
+                </a>
+            </li>
+        {% endif %}
+        
+        {% for page_num in resources.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+            {% if page_num %}
+                <li class="page-item {% if page_num == resources.page %}active{% endif %}">
+                    <a class="page-link" href="{{ url_for('resource.list_resources', page=page_num, search=request.args.get('search', ''), type=request.args.get('type', ''), capacity=request.args.get('capacity', ''), price_range=request.args.get('price_range', ''), sort=request.args.get('sort', '')) }}">{{ page_num }}</a>
+                </li>
+            {% else %}
+                <li class="page-item disabled"><span class="page-link">...</span></li>
+            {% endif %}
+        {% endfor %}
+        
+        {% if resources.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('resource.list_resources', page=resources.next_num, search=request.args.get('search', ''), type=request.args.get('type', ''), capacity=request.args.get('capacity', ''), price_range=request.args.get('price_range', ''), sort=request.args.get('sort', '')) }}">
+                    Next <i class="bi bi-chevron-right"></i>
+                </a>
+            </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+<!-- Empty state -->
+{% if resources.items|length == 0 %}
+<div class="empty-state">
+    <i class="bi bi-inbox"></i>
+    <h3>No Resources Found</h3>
+    <p>Try adjusting your search filters</p>
+</div>
+{% endif %}
+{% endblock %}

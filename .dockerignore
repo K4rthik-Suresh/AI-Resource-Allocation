@@ -1,0 +1,44 @@
+# Virtual environments
+venv/
+spacy_env/
+env/
+.venv/
+
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# IDE / Editor
+.vscode/
+.idea/
+
+# Git
+.git/
+.gitignore
+
+# Database files (will be created at runtime)
+*.db
+*.sqlite
+*.sqlite3
+instance/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Tests
+tests/
+
+# Documentation
+*.md
+!requirements.txt
+
+# Environment
+.env
+
+# Node (unused)
+node_modules/
+package.json
+package-lock.json

@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+
+{% block title %}Create Booking - Resource Booking System{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <h1 class="mb-4">Create New Booking</h1>
+            
+            <!-- Added info banner when form is auto-filled from NLP search -->
+            {% if prefill and (prefill.date or prefill.start_time or prefill.end_time or prefill.purpose) %}
+            <div class="alert alert-success alert-dismissible fade show mb-4">
+                <div class="d-flex align-items-start">
+                    <i class="bi bi-magic me-3" style="font-size: 1.5rem;"></i>
+                    <div>
+                        <h5 class="alert-heading mb-2">Smart Auto-Fill Activated!</h5>
+                        <p class="mb-1">I've automatically filled in some fields based on your search. Fields marked with <span class="badge bg-success"><i class="bi bi-stars"></i> Auto-filled</span> were extracted from your request.</p>
+                        <small class="text-muted">You can modify any field before submitting.</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endif %}
+            
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
+            {% if not resources or resources|length == 0 %}
+            <div class="alert alert-warning">
+                <h5 class="alert-heading"><i class="bi bi-exclamation-triangle"></i> No Resources Available</h5>
+                <p>There are currently no resources available for booking.</p>
+                <hr>
+                <p class="mb-0">
+                    <a href="{{ url_for('resource.browse') }}" class="btn btn-sm btn-primary">Browse All Resources</a>
+                    <a href="{{ url_for('booking.dashboard') }}" class="btn btn-sm btn-outline-secondary">Back to Dashboard</a>
+                </p>
+            </div>
+            {% else %}
+            
+            <div class="card shadow">
+                <div class="card-body p-4">
+                    <form method="POST" id="bookingForm" action="{{ url_for('booking.create_booking') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="booking_type" value="hourly">
+                        
+                        <!-- Resource Selection -->
+                        <div class="mb-4">
+                            <label for="resource_id" class="form-label fw-bold">
+                                <i class="bi bi-box-seam text-primary"></i> Select Resource *
+                                {% if selected_resource %}
+                                <span class="badge bg-success ms-2"><i class="bi bi-stars"></i> Auto-filled</span>
+                                {% endif %}
+                            </label>
+                            <select class="form-select form-select-lg {% if selected_resource %}border-success border-2{% endif %}" 
+                                    id="resource_id" name="resource_id" required onchange="updateCostEstimate()">
+                                <option value="">-- Choose a resource to book --</option>
+                                {% for resource in resources %}
+                                    <option value="{{ resource.id }}" 
+                                            data-hourly="{{ resource.hourly_rate }}"
+                                            data-name="{{ resource.name }}"
+                                            {% if selected_resource and selected_resource.id == resource.id %}selected{% endif %}>
+                                        {{ resource.name }} - ${{ "%.2f"|format(resource.hourly_rate) }}/hr
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">Choose which resource you want to book ({{ resources|length }} available)</small>
+                        </div>
+
+                        <hr class="my-4">
+                        
+                        <!-- Booking Date with auto-fill support -->
+                        <div class="mb-4">
+                            <label for="booking_date" class="form-label fw-bold">
+                                <i class="bi bi-calendar text-primary"></i> Booking Date *
+                                {% if prefill and prefill.date %}
+                                <span class="badge bg-success ms-2"><i class="bi bi-stars"></i> Auto-filled</span>
+                                {% endif %}
+                            </label>
+                            <input type="date" class="form-control form-control-lg {% if prefill and prefill.date %}border-success border-2{% endif %}" 
+                                   id="booking_date" name="booking_date" 
+                                   value="{{ prefill.date if prefill and prefill.date else '' }}" 
+                                   required onchange="updateCostEstimate()">
+                            <small class="text-muted">Select the start date for your booking</small>
+                        </div>
+                        
+                        <!-- Duration with auto-fill support -->
+                        <div class="mb-4">
+                            <label for="duration_days" class="form-label fw-bold">
+                                <i class="bi bi-calendar-range text-primary"></i> Duration (Days) *
+                                {% if prefill and prefill.duration_days and prefill.duration_days > 1 %}
+                                <span class="badge bg-success ms-2"><i class="bi bi-stars"></i> Auto-filled</span>
+                                {% endif %}
+                            </label>
+                            <input type="number" class="form-control form-control-lg {% if prefill and prefill.duration_days and prefill.duration_days > 1 %}border-success border-2{% endif %}" 
+                                   id="duration_days" name="duration_days" 
+                                   min="1" max="365" 
+                                   value="{{ prefill.duration_days if prefill and prefill.duration_days else 1 }}" 
+                                   required oninput="updateCostEstimate()">
+                            <small class="text-muted">How many consecutive days do you need? (1-365 days)</small>
+                        </div>
+                        
+                        <!-- Time Range with auto-fill support -->
+                        <div class="row">
+                            <div class="col-md-6 mb-4">
+                                <label for="start_time" class="form-label fw-bold">
+                                    <i class="bi bi-clock text-primary"></i> Daily Start Time *
+                                    {% if prefill and prefill.start_time %}
+                                    <span class="badge bg-success ms-2"><i class="bi bi-stars"></i> Auto-filled</span>
+                                    {% endif %}
+                                </label>
+                                <input type="time" class="form-control form-control-lg {% if prefill and prefill.start_time %}border-success border-2{% endif %}" 
+                                       id="start_time" name="start_time" 
+                                       value="{{ prefill.start_time if prefill and prefill.start_time else '09:00' }}" 
+                                       required onchange="updateCostEstimate()">
+                                <small class="text-muted">Start time each day</small>
+                            </div>
+                            
+                            <div class="col-md-6 mb-4">
+                                <label for="end_time" class="form-label fw-bold">
+                                    <i class="bi bi-clock-fill text-primary"></i> Daily End Time *
+                                    {% if prefill and prefill.end_time %}
+                                    <span class="badge bg-success ms-2"><i class="bi bi-stars"></i> Auto-filled</span>
+                                    {% endif %}
+                                </label>
+                                <input type="time" class="form-control form-control-lg {% if prefill and prefill.end_time %}border-success border-2{% endif %}" 
+                                       id="end_time" name="end_time" 
+                                       value="{{ prefill.end_time if prefill and prefill.end_time else '17:00' }}" 
+                                       required onchange="updateCostEstimate()">
+                                <small class="text-muted">End time each day</small>
+                            </div>
+                        </div>
+
+                        <!-- Purpose with auto-fill support -->
+                        <div class="mb-4">
+                            <label for="purpose" class="form-label fw-bold">
+                                <i class="bi bi-chat-left-text text-primary"></i> Purpose 
+                                <span class="text-muted fw-normal">(Optional)</span>
+                                {% if prefill and prefill.purpose %}
+                                <span class="badge bg-success ms-2"><i class="bi bi-stars"></i> Auto-filled</span>
+                                {% endif %}
+                            </label>
+                            <textarea class="form-control {% if prefill and prefill.purpose %}border-success border-2{% endif %}" 
+                                      id="purpose" name="purpose" rows="3" 
+                                      placeholder="What will you use this resource for?">{{ prefill.purpose if prefill and prefill.purpose else '' }}</textarea>
+                            <small class="text-muted">Describe what you'll be doing during this booking</small>
+                        </div>
+
+                        <!-- User Notes (Phase 1) -->
+                        <div class="mb-4">
+                            <label for="user_notes" class="form-label fw-bold">
+                                <i class="bi bi-pencil-square text-info"></i> Additional Notes 
+                                <span class="text-muted fw-normal">(Optional)</span>
+                            </label>
+                            <textarea class="form-control" 
+                                      id="user_notes" name="user_notes" rows="2" 
+                                      placeholder="Add any special requests or notes for this booking..."></textarea>
+                            <small class="text-muted">These notes will be visible to admins</small>
+                        </div>
+
+                        <!-- Cost Estimate -->
+                        <div class="alert alert-info mb-4" id="cost_estimate" style="display: none;">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div>
+                                    <h6 class="mb-1"><i class="bi bi-calculator"></i> Estimated Cost</h6>
+                                    <small id="cost_breakdown" class="text-muted"></small>
+                                </div>
+                                <div class="text-end">
+                                    <p class="mb-0 fs-3 fw-bold text-primary" id="cost_display">$0.00</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Submit Buttons -->
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg px-5">
+                                <i class="bi bi-check-circle"></i> Create Booking
+                            </button>
+                            <a href="{{ url_for('booking.dashboard') }}" class="btn btn-outline-secondary btn-lg">
+                                <i class="bi bi-x-circle"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+function updateCostEstimate() {
+    var resourceSelect = document.getElementById('resource_id');
+    var selectedOption = resourceSelect.options[resourceSelect.selectedIndex];
+    
+    if (!selectedOption || !selectedOption.value) {
+        document.getElementById('cost_estimate').style.display = 'none';
+        return;
+    }
+    
+    var hourlyRate = parseFloat(selectedOption.getAttribute('data-hourly')) || 0;
+    var resourceName = selectedOption.getAttribute('data-name') || '';
+    var duration = parseInt(document.getElementById('duration_days').value) || 1;
+    var startTime = document.getElementById('start_time').value;
+    var endTime = document.getElementById('end_time').value;
+    
+    if (!startTime || !endTime || hourlyRate === 0) {
+        document.getElementById('cost_estimate').style.display = 'none';
+        return;
+    }
+    
+    var startParts = startTime.split(':');
+    var endParts = endTime.split(':');
+    var startMinutes = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
+    var endMinutes = parseInt(endParts[0]) * 60 + parseInt(endParts[1]);
+    
+    if (endMinutes <= startMinutes) {
+        document.getElementById('cost_estimate').style.display = 'none';
+        return;
+    }
+    
+    var hoursPerDay = (endMinutes - startMinutes) / 60;
+    var totalHours = hoursPerDay * duration;
+    var totalCost = totalHours * hourlyRate;
+    
+    document.getElementById('cost_display').textContent = '$' + totalCost.toFixed(2);
+    document.getElementById('cost_breakdown').textContent = 
+        duration + ' day(s) × ' + hoursPerDay.toFixed(1) + ' hours/day × $' + hourlyRate.toFixed(2) + '/hour';
+    document.getElementById('cost_estimate').style.display = 'block';
+}
+
+// Set minimum date on page load
+window.onload = function() {
+    var today = new Date().toISOString().split('T')[0];
+    document.getElementById('booking_date').min = today;
+    
+    // Only set today's date if no date was auto-filled
+    var bookingDateInput = document.getElementById('booking_date');
+    if (!bookingDateInput.value) {
+        bookingDateInput.value = today;
+    }
+    
+    // Calculate cost estimate on page load (important for auto-filled forms)
+    updateCostEstimate();
+};
+</script>
+{% endblock %}

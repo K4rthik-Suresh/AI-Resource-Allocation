@@ -1,0 +1,175 @@
+<div class="card mb-4 border-0 shadow-sm">
+    <div class="card-body p-4">
+        <div class="d-flex align-items-center gap-2 mb-3">
+            <span style="font-size: 24px;">🤖</span>
+            <h5 class="mb-0">AI Smart Booking</h5>
+        </div>
+        <p class="text-muted mb-3">Describe what you need in natural language</p>
+        
+        <div class="input-group input-group-lg mb-3">
+            <input 
+                type="text" 
+                class="form-control" 
+                id="nlpInput" 
+                placeholder="E.g., 'I need a conference room for 2 hours tomorrow at 10am'"
+                autocomplete="off"
+            >
+            <button class="btn btn-primary" type="button" id="nlpSearchBtn" onclick="searchNLPBooking()">
+                <span class="spinner-border spinner-border-sm d-none" id="nlpSpinner" role="status" aria-hidden="true"></span>
+                <span id="nlpBtnText">Search</span>
+            </button>
+        </div>
+
+        <div id="nlpResults" class="d-none">
+            <div class="alert alert-info" role="alert">
+                <strong>AI Analysis:</strong>
+                <div id="nlpAnalysis" class="mt-2"></div>
+            </div>
+
+            <div id="nlpMatches" class="mt-3"></div>
+            
+            <div class="mt-3 d-flex gap-2">
+                <button class="btn btn-success" id="nlpConfirmBtn" onclick="confirmNLPBooking()" style="display: none;">
+                    Confirm Booking
+                </button>
+                <button class="btn btn-secondary" onclick="resetNLPSearch()">Reset</button>
+            </div>
+        </div>
+
+        <div id="nlpError" class="alert alert-danger d-none mt-3" role="alert"></div>
+    </div>
+</div>
+
+<script>
+let currentNLPBooking = null;
+
+async function searchNLPBooking() {
+    const input = document.getElementById('nlpInput').value.trim();
+    
+    if (!input) {
+        showNLPError('Please describe what you need');
+        return;
+    }
+
+    const btn = document.getElementById('nlpSearchBtn');
+    const spinner = document.getElementById('nlpSpinner');
+    const btnText = document.getElementById('nlpBtnText');
+    
+    btn.disabled = true;
+    spinner.classList.remove('d-none');
+    btnText.textContent = 'Searching...';
+
+    try {
+        const response = await fetch('{{ url_for("ai.nlp_booking") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ input: input })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to process booking request');
+        }
+
+        const data = await response.json();
+        
+        if (data.error) {
+            showNLPError(data.error);
+        } else {
+            currentNLPBooking = data.booking_params;
+            displayNLPResults(data.booking_params);
+        }
+    } catch (error) {
+        console.error('[v0] NLP booking error:', error);
+        showNLPError(error.message || 'Failed to process your request. Try being more specific.');
+    } finally {
+        btn.disabled = false;
+        spinner.classList.add('d-none');
+        btnText.textContent = 'Search';
+    }
+}
+
+function displayNLPResults(params) {
+    const resultsDiv = document.getElementById('nlpResults');
+    const analysisDiv = document.getElementById('nlpAnalysis');
+    const matchesDiv = document.getElementById('nlpMatches');
+    const errorDiv = document.getElementById('nlpError');
+    
+    errorDiv.classList.add('d-none');
+    
+    // Display parsed parameters
+    let analysisHTML = '<ul class="mb-0">';
+    if (params.resource_type) analysisHTML += `<li><strong>Resource:</strong> ${params.resource_type}</li>`;
+    if (params.date) analysisHTML += `<li><strong>Date:</strong> ${params.date}</li>`;
+    if (params.start_time) analysisHTML += `<li><strong>Start Time:</strong> ${params.start_time}</li>`;
+    if (params.duration) analysisHTML += `<li><strong>Duration:</strong> ${params.duration} hours</li>`;
+    if (params.duration_days && params.duration_days > 1) analysisHTML += `<li><strong>Days:</strong> ${params.duration_days} day(s)</li>`;
+    if (params.participants) analysisHTML += `<li><strong>Participants:</strong> ${params.participants}</li>`;
+    analysisHTML += '</ul>';
+    
+    analysisDiv.innerHTML = analysisHTML;
+    
+    // Show matches if available
+    if (params.suggested_resources && params.suggested_resources.length > 0) {
+        let matchesHTML = '<strong class="d-block mb-2">Suggested Resources:</strong><div class="row">';
+        params.suggested_resources.forEach(resource => {
+            matchesHTML += `
+                <div class="col-md-6 mb-2">
+                    <div class="card bg-light">
+                        <div class="card-body p-3">
+                            <h6 class="card-title">${resource.name}</h6>
+                            <p class="card-text small text-muted mb-0">${resource.description}</p>
+                            <p class="card-text small mt-2"><strong>$${resource.hourly_rate}/hr</strong></p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        matchesHTML += '</div>';
+        matchesDiv.innerHTML = matchesHTML;
+    }
+    
+    document.getElementById('nlpConfirmBtn').style.display = 'inline-block';
+    resultsDiv.classList.remove('d-none');
+}
+
+function confirmNLPBooking() {
+    if (!currentNLPBooking) return;
+    
+    // Build URL with all NLP-extracted params so the booking form auto-fills
+    const params = new URLSearchParams();
+    if (currentNLPBooking.resource_id) params.set('resource_id', currentNLPBooking.resource_id);
+    if (currentNLPBooking.date) params.set('date', currentNLPBooking.date);
+    if (currentNLPBooking.start_time) params.set('start_time', currentNLPBooking.start_time);
+    if (currentNLPBooking.end_time) params.set('end_time', currentNLPBooking.end_time);
+    if (currentNLPBooking.duration_days) params.set('duration_days', currentNLPBooking.duration_days);
+    if (currentNLPBooking.activity || currentNLPBooking.intent) params.set('purpose', currentNLPBooking.activity || currentNLPBooking.intent || '');
+    
+    // Redirect to create booking page with pre-filled query params
+    const baseUrl = '{{ url_for("booking.create_booking") }}';
+    window.location.href = baseUrl + '?' + params.toString();
+}
+
+function resetNLPSearch() {
+    document.getElementById('nlpInput').value = '';
+    document.getElementById('nlpResults').classList.add('d-none');
+    document.getElementById('nlpError').classList.add('d-none');
+    document.getElementById('nlpMatches').innerHTML = '';
+    currentNLPBooking = null;
+}
+
+function showNLPError(message) {
+    const errorDiv = document.getElementById('nlpError');
+    errorDiv.textContent = message;
+    errorDiv.classList.remove('d-none');
+    document.getElementById('nlpResults').classList.add('d-none');
+}
+
+// Allow Enter key to search
+document.getElementById('nlpInput').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        searchNLPBooking();
+    }
+});
+</script>

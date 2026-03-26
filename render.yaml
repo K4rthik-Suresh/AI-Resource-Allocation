@@ -1,0 +1,24 @@
+# ============================================
+# Render Blueprint - Infrastructure as Code
+# Deploy with: render.com → New → Blueprint
+# ============================================
+
+services:
+  - type: web
+    name: resource-allocation-system
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: GROQ_API_KEY
+        sync: false  # You'll set this manually in dashboard
+      - key: FLASK_ENV
+        value: production
+      - key: DATABASE_URL
+        value: sqlite:////data/resource_booking.db
+    disk:
+      name: sqlite-data
+      mountPath: /data
+      sizeGB: 1  # Free tier allows 1GB disk

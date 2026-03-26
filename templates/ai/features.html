@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row">
+        <div class="col-md-12">
+            <h1 class="mb-4">AI-Powered Booking Assistant</h1>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- NLP Booking -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5>Natural Language Booking</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Describe your booking in natural language. Our AI will understand and create a booking for you.</p>
+                    <textarea id="nlp-input" class="form-control mb-2" rows="3" placeholder="e.g., I need Conference Room A for 2 hours tomorrow at 10am"></textarea>
+                    <button class="btn btn-primary w-100" onclick="performNLPBooking()">Parse & Book</button>
+                    <div id="nlp-result" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Semantic Search -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5>Semantic Search</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Find resources by describing what you need.</p>
+                    <input type="text" id="semantic-query" class="form-control mb-2" placeholder="e.g., I need a large room with projector">
+                    <button class="btn btn-success w-100" onclick="performSemanticSearch()">Search</button>
+                    <div id="semantic-result" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <!-- Smart Suggestions -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5>Smart Suggestions</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Get personalized booking recommendations based on your history.</p>
+                    <button class="btn btn-info w-100" onclick="getSmartSuggestions()">Get Suggestions</button>
+                    <div id="suggestions-result" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Requirement Matching -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-warning text-white">
+                    <h5>Requirement Matching</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Describe your requirements and let AI find the best match.</p>
+                    <textarea id="requirements-input" class="form-control mb-2" rows="3" placeholder="e.g., Need a room for 50 people with WiFi, projector, and whiteboard"></textarea>
+                    <button class="btn btn-warning w-100" onclick="matchRequirements()">Find Match</button>
+                    <div id="match-result" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function performNLPBooking() {
+    const input = document.getElementById('nlp-input').value;
+    if (!input.trim()) {
+        alert('Please enter a booking description');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/ai/nlp-booking', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ input })
+        });
+        const data = await response.json();
+        
+        if (data.booking_params) {
+            const params = data.booking_params;
+            document.getElementById('nlp-result').innerHTML = `
+                <div class="alert alert-success">
+                    <strong>Extracted Details:</strong><br>
+                    Date: ${params.date || 'Not specified'}<br>
+                    Start Time: ${params.start_time || 'Not specified'}<br>
+                    End Time: ${params.end_time || 'Not specified'}<br>
+                    Resource Type: ${params.resource_type || 'Not specified'}
+                </div>
+            `;
+        }
+    } catch (error) {
+        document.getElementById('nlp-result').innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
+    }
+}
+
+async function performSemanticSearch() {
+    const query = document.getElementById('semantic-query').value;
+    if (!query.trim()) {
+        alert('Please enter a search query');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/ai/semantic-search', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query })
+        });
+        const data = await response.json();
+        
+        if (data.results && data.results.length > 0) {
+            let html = '<strong>Search Results:</strong><div class="list-group mt-2">';
+            data.results.forEach(r => {
+                html += `
+                    <div class="list-group-item">
+                        <h6>${r.name}</h6>
+                        <small class="text-muted">${r.description}</small><br>
+                        <small>Type: ${r.type} | Location: ${r.location}</small><br>
+                        <small class="badge badge-info">Match: ${(r.similarity_score * 100).toFixed(0)}%</small>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            document.getElementById('semantic-result').innerHTML = html;
+        } else {
+            document.getElementById('semantic-result').innerHTML = '<div class="alert alert-info">No matching resources found</div>';
+        }
+    } catch (error) {
+        document.getElementById('semantic-result').innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
+    }
+}
+
+async function getSmartSuggestions() {
+    try {
+        const response = await fetch('/ai/smart-suggestions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ resource_type: '', preferred_date: '' })
+        });
+        const data = await response.json();
+        
+        if (data.suggestions && data.suggestions.length > 0) {
+            let html = '<strong>Suggested Resources:</strong><div class="list-group mt-2">';
+            data.suggestions.forEach(s => {
+                html += `
+                    <div class="list-group-item">
+                        <h6>${s.name}</h6>
+                        <small>Type: ${s.type} | Reason: ${s.reason}</small>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            document.getElementById('suggestions-result').innerHTML = html;
+        }
+    } catch (error) {
+        document.getElementById('suggestions-result').innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
+    }
+}
+
+async function matchRequirements() {
+    const requirements = document.getElementById('requirements-input').value;
+    if (!requirements.trim()) {
+        alert('Please enter your requirements');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/ai/requirement-match', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ requirements })
+        });
+        const data = await response.json();
+        
+        if (data.matches && data.matches.length > 0) {
+            let html = '<strong>Best Matches:</strong><div class="list-group mt-2">';
+            data.matches.forEach(m => {
+                html += `
+                    <div class="list-group-item">
+                        <h6>${m.name}</h6>
+                        <small>Capacity: ${m.capacity} | Location: ${m.location}</small><br>
+                        <small class="badge badge-success">Match Score: ${(m.score * 100).toFixed(0)}%</small>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            document.getElementById('match-result').innerHTML = html;
+        } else {
+            document.getElementById('match-result').innerHTML = '<div class="alert alert-info">No matching resources found</div>';
+        }
+    } catch (error) {
+        document.getElementById('match-result').innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
+    }
+}
+</script>
+{% endblock %}
