@@ -25,8 +25,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Create data directory for persistent SQLite
-RUN mkdir -p /data
+# Create instance directory for SQLite
+RUN mkdir -p /app/instance
 
 # Make startup script executable
 RUN chmod +x render_start.sh

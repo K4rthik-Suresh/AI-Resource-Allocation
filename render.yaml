@@ -17,8 +17,4 @@ services:
       - key: FLASK_ENV
         value: production
       - key: DATABASE_URL
-        value: sqlite:////data/resource_booking.db
-    disk:
-      name: sqlite-data
-      mountPath: /data
-      sizeGB: 1  # Free tier allows 1GB disk
+        value: sqlite:///resource_booking.db
