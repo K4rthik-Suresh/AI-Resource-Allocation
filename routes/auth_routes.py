@@ -44,7 +44,7 @@ EXAMPLE VALID PASSWORDS:
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from flask_login import login_user, logout_user, current_user, login_required
 from flask_bcrypt import Bcrypt
-from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.security import generate_password_hash
 from models import db, User, AuditLog
 from datetime import datetime, timedelta
 import re
@@ -210,9 +210,15 @@ def login():
         password_valid = False
         if user:
             try:
-                password_valid = check_password_hash(user.password_hash, password)
+                # Use flask_bcrypt's check_password_hash which handles the exact hash format we stored
+                password_valid = bcrypt.check_password_hash(user.password_hash, password)
             except Exception:
-                password_valid = False
+                try:
+                    # Fallback for old werkzeug pbkdf2 hashes in case some exist
+                    from werkzeug.security import check_password_hash
+                    password_valid = check_password_hash(user.password_hash, password)
+                except:
+                    password_valid = False
         
         if user and password_valid:
             if not user.is_active:
