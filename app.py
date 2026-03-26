@@ -87,7 +87,13 @@ IS_PRODUCTION = os.environ.get('FLASK_ENV', 'development') == 'production'
 
 # Configuration
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', os.urandom(32).hex())
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///resource_booking.db')
+
+# Database URL parsing (Neon provides postgres://, SQLAlchemy requires postgresql://)
+database_url = os.environ.get('DATABASE_URL', 'sqlite:///resource_booking.db')
+if database_url.startswith('postgres://'):
+    database_url = database_url.replace('postgres://', 'postgresql://', 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SESSION_COOKIE_SECURE'] = IS_PRODUCTION  # Only enforce HTTPS cookies in production
 app.config['SESSION_COOKIE_HTTPONLY'] = True

@@ -1,7 +1,7 @@
 #!/bin/bash
 # ============================================
 # Render Startup Script
-# Initializes DB on each start, then starts server
+# Initializes DB safely on startup and seeds data
 # ============================================
 
 set -e
@@ -10,15 +10,19 @@ echo "============================================"
 echo " Resource Allocation System - Starting..."
 echo "============================================"
 
-# Initialize database (re-creates fresh on each restart with sample data)
-echo "[DEPLOY] Initializing database with sample data..."
-cd /app/scripts && python init_system.py
+# We rely on app.py's `db.create_all()` context to safely create tables in Postgres
+# without wiping existing data.
 
-# Move the database to app root where Flask expects it
-if [ -f /app/scripts/resource_booking.db ]; then
-    mv /app/scripts/resource_booking.db /app/instance/resource_booking.db
-    echo "[DEPLOY] Database ready at /app/instance/resource_booking.db"
-fi
+# We will run the seeding scripts. Since the scripts check if resources/facilities
+# exist before creating them (or safely delete and recreate specific chunks), 
+# running them on startup is safe and idempotent.
+
+echo "[DEPLOY] Seeding default facilities and base resources..."
+cd /app/scripts
+python setup_simple.py
+
+echo "[DEPLOY] Seeding extended resources and future bookings..."
+python add_500_resources_and_bookings.py
 
 cd /app
 echo "[DEPLOY] Starting Gunicorn server..."
