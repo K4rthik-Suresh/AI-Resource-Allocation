@@ -6,8 +6,8 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app import app, db
-from models import Resource, ResourceSystem
+from app import app, db, bcrypt
+from models import Resource, ResourceSystem, User, UserResourceSystem
 from datetime import time
 
 def setup_simple_resources():
@@ -24,6 +24,47 @@ def setup_simple_resources():
             )
             db.session.add(facility)
             db.session.commit()
+            
+        # Ensure Admin user exists
+        admin_user = User.query.filter_by(username='admin').first()
+        if not admin_user:
+            admin_password = bcrypt.generate_password_hash('Admin@12345').decode('utf-8')
+            admin_user = User(
+                username='admin',
+                email='admin@system.com',
+                password_hash=admin_password,
+                full_name='System Administrator',
+                role='admin',
+                is_active=True
+            )
+            db.session.add(admin_user)
+            db.session.commit()
+            
+            # Assign admin to Main Facility
+            assignment = UserResourceSystem(
+                user_id=admin_user.id,
+                resource_system_id=facility.id,
+                role='admin'
+            )
+            db.session.add(assignment)
+            db.session.commit()
+            print("[v0] Created admin user and assigned to Main Facility")
+
+        # Ensure regular user exists
+        regular_user = User.query.filter_by(username='user1').first()
+        if not regular_user:
+            user_password = bcrypt.generate_password_hash('User@12345').decode('utf-8')
+            regular_user = User(
+                username='user1',
+                email='user1@example.com',
+                password_hash=user_password,
+                full_name='John Doe',
+                role='user',
+                is_active=True
+            )
+            db.session.add(regular_user)
+            db.session.commit()
+            print("[v0] Created regular user (user1)")
         
         # Delete old resources
         Resource.query.delete()
