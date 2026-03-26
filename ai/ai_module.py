@@ -299,11 +299,55 @@ Return ONLY the JSON object, nothing else."""
         return booking_params
     
     def _extract_date_pattern(self, text):
-        """Pattern-based date extraction - supports ISO 8601, numerical DMY, formal, ordinal, and relative dates"""
+        """Pattern-based date extraction - supports ISO 8601, numerical DMY, formal, ordinal, relative dates, and weekday names"""
         # First check relative date expressions
         for expression, days_offset in self.date_expressions.items():
             if expression in text:
                 target_date = datetime.now() + timedelta(days=days_offset)
+                return target_date.strftime('%Y-%m-%d')
+        
+        # === Weekday name patterns: "next monday", "this friday", "on wednesday", bare "monday" ===
+        # Pattern: "next monday", "next friday", etc. — always jumps to the NEXT occurrence (1-7 days ahead)
+        next_weekday_match = re.search(r'next\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun)\b', text, re.IGNORECASE)
+        if next_weekday_match:
+            weekday_str = next_weekday_match.group(1).lower()
+            if weekday_str in self.weekday_patterns:
+                target_weekday = self.weekday_patterns[weekday_str]
+                today = datetime.now()
+                days_ahead = target_weekday - today.weekday()
+                if days_ahead <= 0:
+                    days_ahead += 7  # Always go to NEXT week's occurrence
+                target_date = today + timedelta(days=days_ahead)
+                print(f"[v0] Extracted 'next {weekday_str}' date: {target_date.strftime('%Y-%m-%d')}")
+                return target_date.strftime('%Y-%m-%d')
+        
+        # Pattern: "this monday", "this friday", "on monday", or bare "monday" — picks the upcoming occurrence
+        this_weekday_match = re.search(r'(?:this|on|for)\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun)\b', text, re.IGNORECASE)
+        if this_weekday_match:
+            weekday_str = this_weekday_match.group(1).lower()
+            if weekday_str in self.weekday_patterns:
+                target_weekday = self.weekday_patterns[weekday_str]
+                today = datetime.now()
+                days_ahead = target_weekday - today.weekday()
+                if days_ahead < 0:
+                    days_ahead += 7  # Go to next week if the day already passed
+                target_date = today + timedelta(days=days_ahead)
+                print(f"[v0] Extracted 'this/on {weekday_str}' date: {target_date.strftime('%Y-%m-%d')}")
+                return target_date.strftime('%Y-%m-%d')
+        
+        # Pattern: bare weekday name "monday", "friday" (without next/this/on prefix)
+        # Only match if it's a standalone weekday reference, not part of another matched pattern
+        bare_weekday_match = re.search(r'\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b', text, re.IGNORECASE)
+        if bare_weekday_match:
+            weekday_str = bare_weekday_match.group(1).lower()
+            if weekday_str in self.weekday_patterns:
+                target_weekday = self.weekday_patterns[weekday_str]
+                today = datetime.now()
+                days_ahead = target_weekday - today.weekday()
+                if days_ahead <= 0:
+                    days_ahead += 7  # Go to next occurrence
+                target_date = today + timedelta(days=days_ahead)
+                print(f"[v0] Extracted bare weekday '{weekday_str}' date: {target_date.strftime('%Y-%m-%d')}")
                 return target_date.strftime('%Y-%m-%d')
         
         # "in 3 days" pattern
