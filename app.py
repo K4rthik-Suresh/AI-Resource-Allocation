@@ -115,16 +115,16 @@ limiter = Limiter(
 )
 
 csp = {
-    'default-src': ["'self'"],
-    'script-src': ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.jsdelivr.net", "https://code.jquery.com", "https://cdnjs.cloudflare.com"],
-    'style-src': ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com"],
+    'default-src': "'self'",
+    'script-src': ["'self'", "'unsafe-inline'", "cdn.jsdelivr.net"],
+    'style-src': ["'self'", "'unsafe-inline'", "cdn.jsdelivr.net"],
     'img-src': ["'self'", "data:", "https:"],
-    'font-src': ["'self'", "https://cdn.jsdelivr.net", "https://fonts.gstatic.com", "data:"],
-    'connect-src': ["'self'", "https://cdn.jsdelivr.net", "https://api.groq.com"]
+    'font-src': ["'self'", "cdn.jsdelivr.net"]
 }
 Talisman(app, 
          force_https=IS_PRODUCTION,  # Enable HTTPS redirect in production
-         content_security_policy=csp)
+         content_security_policy=csp,
+         content_security_policy_nonce_in=['script-src'])
 
 login_manager = LoginManager()
 login_manager.init_app(app)
