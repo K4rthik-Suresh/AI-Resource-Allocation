@@ -66,9 +66,9 @@ def setup_simple_resources():
             db.session.commit()
             print("[v0] Created regular user (user1)")
         
-        # Delete old resources
-        Resource.query.delete()
-        db.session.commit()
+        # Make script idempotent: DO NOT delete existing resources (preserves bookings)
+        # Resource.query.delete()
+        # db.session.commit()
         
         resources_data = [
             # Conference Rooms
@@ -112,28 +112,32 @@ def setup_simple_resources():
             ('Outdoor Terrace', 'outdoor', 50, 50.00, 'Beautiful outdoor event space'),
         ]
         
+        added_count = 0
         for name, res_type, capacity, rate, description in resources_data:
-            resource = Resource(
-                name=name,
-                description=description,
-                resource_type=res_type,
-                capacity=capacity,
-                hourly_rate=rate,
-                location='Building A',
-                availability_start=time(8, 0),
-                availability_end=time(22, 0),
-                resource_system_id=facility.id,
-                is_available=True,
-                features=f'{name} - {capacity} people'
-            )
-            db.session.add(resource)
+            existing = Resource.query.filter_by(name=name, resource_system_id=facility.id).first()
+            if not existing:
+                resource = Resource(
+                    name=name,
+                    description=description,
+                    resource_type=res_type,
+                    capacity=capacity,
+                    hourly_rate=rate,
+                    location='Building A',
+                    availability_start=time(8, 0),
+                    availability_end=time(22, 0),
+                    resource_system_id=facility.id,
+                    is_available=True,
+                    features=f'{name} - {capacity} people'
+                )
+                db.session.add(resource)
+                added_count += 1
         
         db.session.commit()
         
         print("=" * 70)
         print("[v0] SUCCESS! Simplified resource setup complete!")
         print("=" * 70)
-        print(f"\n[v0] Added {len(resources_data)} resources to database")
+        print(f"\n[v0] Added {added_count} new resources to database (skipped existing)")
         print(f"[v0] All resources linked to: Main Facility\n")
         print("[v0] Resources created:")
         for name, res_type, capacity, rate, _ in resources_data:

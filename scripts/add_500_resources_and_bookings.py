@@ -238,6 +238,12 @@ def add_bulk_resources_and_bookings():
             print("[v0] Warning: No resources found to create bookings")
             return
         
+        # Check if we already have plenty of bookings to avoid spamming the DB on restarts
+        existing_bookings_count = Booking.query.count()
+        if existing_bookings_count > 50:
+            print(f"[v0] Database already has {existing_bookings_count} bookings. Skipping bulk generation.")
+            return
+
         # Create bookings for future dates (next 7-30 days)
         base_date = datetime.now().date() + timedelta(days=1)
         
