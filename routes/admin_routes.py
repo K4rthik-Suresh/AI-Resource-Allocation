@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from models import db, User, Resource, Booking, BookingHistory, ResourceSystem, ResourceReview
 from datetime import datetime, timedelta, date
-from sqlalchemy import func
+from sqlalchemy import func, distinct
 from werkzeug.security import generate_password_hash, check_password_hash
 import logging
 
@@ -305,10 +305,26 @@ def manage_bookings():
 @login_required
 @admin_required
 def manage_resources():
-    """List and manage resources"""
+    """List and manage resources with optional type filtering"""
     page = request.args.get('page', 1, type=int)
-    resources = Resource.query.paginate(page=page, per_page=20)
-    return render_template('admin/resources.html', resources=resources)
+    resource_type = request.args.get('type', '')
+
+    # Fetch all distinct core resource types for the filter dropdown
+    resource_types = [
+        row[0] for row in
+        db.session.query(distinct(Resource.resource_type))
+        .filter(Resource.resource_type != None, Resource.resource_type != '')
+        .order_by(Resource.resource_type.asc())
+        .all()
+    ]
+
+    query = Resource.query
+    if resource_type:
+        query = query.filter(Resource.resource_type == resource_type)
+
+    resources = query.order_by(Resource.name.asc()).paginate(page=page, per_page=20)
+    return render_template('admin/resources.html', resources=resources,
+                           resource_types=resource_types, current_type=resource_type)
 
 @admin_bp.route('/resource/<int:resource_id>/edit', methods=['GET', 'POST'])
 @login_required

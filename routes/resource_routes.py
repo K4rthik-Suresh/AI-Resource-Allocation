@@ -5,7 +5,7 @@ from flask import Blueprint, render_template, request, jsonify, redirect, url_fo
 from flask_login import login_required, current_user
 from models import db, Resource, Booking
 from datetime import datetime, date
-from sqlalchemy import and_
+from sqlalchemy import and_, distinct
 from sqlalchemy.orm import joinedload
 
 resource_bp = Blueprint('resource', __name__, url_prefix='/resources')
@@ -14,16 +14,30 @@ resource_bp = Blueprint('resource', __name__, url_prefix='/resources')
 def list_resources():
     page = request.args.get('page', 1, type=int)
     search_query = request.args.get('search', '')
+    resource_type = request.args.get('type', '')
     capacity_range = request.args.get('capacity', '')
     price_range = request.args.get('price_range', '')
     sort_by = request.args.get('sort', '')
     
+    # Fetch all distinct core resource types for the filter dropdown
+    resource_types = [
+        row[0] for row in
+        db.session.query(distinct(Resource.resource_type))
+        .filter(Resource.resource_type != None, Resource.resource_type != '')
+        .order_by(Resource.resource_type.asc())
+        .all()
+    ]
+
     # Simple query - get all available resources without system filtering
     query = Resource.query.filter_by(is_available=True)
     
     if search_query:
         query = query.filter(Resource.name.ilike(f'%{search_query}%'))
     
+    # Filter by core resource type
+    if resource_type:
+        query = query.filter(Resource.resource_type == resource_type)
+
     if capacity_range:
         if capacity_range == '1-10':
             query = query.filter(Resource.capacity.between(1, 10))
@@ -61,7 +75,7 @@ def list_resources():
     query = query.options(joinedload(Resource.favorited_by))
     
     resources = query.paginate(page=page, per_page=12)
-    return render_template('resources/list.html', resources=resources)
+    return render_template('resources/list.html', resources=resources, resource_types=resource_types)
 
 @resource_bp.route('/<int:resource_id>')
 def view_resource(resource_id):

@@ -19,6 +19,39 @@
             {% endfor %}
         {% endif %}
     {% endwith %}
+
+    <!-- Resource Type Filter -->
+    <form method="GET" class="row g-2 mb-4 align-items-end">
+        <div class="col-auto">
+            <label class="form-label fw-semibold mb-1">Filter by Type</label>
+            <select class="form-select" name="type" id="admin-resource-type-filter">
+                <option value="">All Types</option>
+                {% for rtype in resource_types %}
+                <option value="{{ rtype }}" {% if current_type == rtype %}selected{% endif %}>
+                    {{ rtype | replace('_', ' ') | title }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-outline-primary">
+                <i class="bi bi-funnel"></i> Filter
+            </button>
+            {% if current_type %}
+            <a href="{{ url_for('admin.manage_resources') }}" class="btn btn-outline-secondary ms-1">
+                <i class="bi bi-x-circle"></i> Clear
+            </a>
+            {% endif %}
+        </div>
+        {% if current_type %}
+        <div class="col-auto align-self-end">
+            <span class="badge bg-primary fs-6">
+                Showing: {{ current_type | replace('_', ' ') | title }}
+                &nbsp;({{ resources.total }} resource{{ 's' if resources.total != 1 }})
+            </span>
+        </div>
+        {% endif %}
+    </form>
     
     <div class="table-responsive">
         <table class="table table-striped">
@@ -37,7 +70,7 @@
                 {% for resource in resources.items %}
                 <tr>
                     <td>{{ resource.name }}</td>
-                    <td>{{ resource.resource_type or '-' }}</td>
+                    <td>{{ (resource.resource_type | replace('_', ' ') | title) if resource.resource_type else '-' }}</td>
                     <td>{{ resource.capacity }}</td>
                     <td>{{ resource.location or '-' }}</td>
                     <td>${{ "%.2f"|format(resource.hourly_rate) }}</td>
@@ -75,11 +108,11 @@
         </table>
     </div>
     
-    <!-- Pagination -->
+    <!-- Pagination (preserves active type filter) -->
     <nav aria-label="Page navigation">
         <ul class="pagination">
             {% if resources.has_prev %}
-            <li class="page-item"><a class="page-link" href="{{ url_for('admin.manage_resources', page=resources.prev_num) }}">Previous</a></li>
+            <li class="page-item"><a class="page-link" href="{{ url_for('admin.manage_resources', page=resources.prev_num, type=current_type) }}">Previous</a></li>
             {% endif %}
             
             {% for page_num in resources.iter_pages() %}
@@ -87,13 +120,13 @@
                     {% if page_num == resources.page %}
                     <li class="page-item active"><span class="page-link">{{ page_num }}</span></li>
                     {% else %}
-                    <li class="page-item"><a class="page-link" href="{{ url_for('admin.manage_resources', page=page_num) }}">{{ page_num }}</a></li>
+                    <li class="page-item"><a class="page-link" href="{{ url_for('admin.manage_resources', page=page_num, type=current_type) }}">{{ page_num }}</a></li>
                     {% endif %}
                 {% endif %}
             {% endfor %}
             
             {% if resources.has_next %}
-            <li class="page-item"><a class="page-link" href="{{ url_for('admin.manage_resources', page=resources.next_num) }}">Next</a></li>
+            <li class="page-item"><a class="page-link" href="{{ url_for('admin.manage_resources', page=resources.next_num, type=current_type) }}">Next</a></li>
             {% endif %}
         </ul>
     </nav>

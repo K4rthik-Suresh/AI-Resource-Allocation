@@ -24,16 +24,12 @@
         </div>
         <div class="col-md-2">
             <select class="form-select" name="type">
-                <option value="">All Categories</option>
-                <option value="Conference Rooms" {% if request.args.get('type') == 'Conference Rooms' %}selected{% endif %}>Conference Rooms</option>
-                <option value="Laboratories" {% if request.args.get('type') == 'Laboratories' %}selected{% endif %}>Laboratories</option>
-                <option value="Auditoriums" {% if request.args.get('type') == 'Auditoriums' %}selected{% endif %}>Auditoriums</option>
-                <option value="Entertainment" {% if request.args.get('type') == 'Entertainment' %}selected{% endif %}>Entertainment</option>
-                <option value="Sports Facilities" {% if request.args.get('type') == 'Sports Facilities' %}selected{% endif %}>Sports Facilities</option>
-                <option value="Creative Studios" {% if request.args.get('type') == 'Creative Studios' %}selected{% endif %}>Creative Studios</option>
-                <option value="Study Spaces" {% if request.args.get('type') == 'Study Spaces' %}selected{% endif %}>Study Spaces</option>
-                <option value="Outdoor Spaces" {% if request.args.get('type') == 'Outdoor Spaces' %}selected{% endif %}>Outdoor Spaces</option>
-                <option value="Equipment" {% if request.args.get('type') == 'Equipment' %}selected{% endif %}>Equipment</option>
+                <option value="">All Types</option>
+                {% for rtype in resource_types %}
+                <option value="{{ rtype }}" {% if request.args.get('type') == rtype %}selected{% endif %}>
+                    {{ rtype | replace('_', ' ') | title }}
+                </option>
+                {% endfor %}
             </select>
         </div>
         <div class="col-md-2">
