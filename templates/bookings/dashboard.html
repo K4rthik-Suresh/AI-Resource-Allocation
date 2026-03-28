@@ -144,18 +144,31 @@
                                 <td class="px-4 py-3">
                                     {% if booking.status == 'completed' %}
                                         {% if booking.id in rated_booking_ids %}
-                                            <button type="button" class="btn btn-sm btn-warning" 
-                                                    data-bs-toggle="modal" 
-                                                    data-bs-target="#rateModal{{ booking.id }}"
-                                                    title="Edit your rating ({{ user_ratings[booking.id] }}/5)">
-                                                <i class="bi bi-star-fill"></i> {{ user_ratings[booking.id] }}/5 <i class="bi bi-pencil-square ms-1" style="font-size: 0.7rem;"></i>
+                                            <button type="button"
+                                                    class="btn btn-sm btn-warning rating-trigger"
+                                                    data-booking-id="{{ booking.id }}"
+                                                    data-resource-name="{{ booking.resource.name }}"
+                                                    data-booking-date="{{ booking.booking_date.strftime('%b %d, %Y') }}"
+                                                    data-booking-time="{{ booking.start_time.strftime('%H:%M') }} - {{ booking.end_time.strftime('%H:%M') }}"
+                                                    data-current-rating="{{ user_ratings[booking.id] }}"
+                                                    id="ratingBtn-{{ booking.id }}"
+                                                    title="Edit your rating">
+                                                <i class="bi bi-star-fill"></i>
+                                                <span class="rating-btn-label">{{ user_ratings[booking.id] }}/5</span>
+                                                <i class="bi bi-pencil-square ms-1" style="font-size:0.7rem"></i>
                                             </button>
                                         {% else %}
-                                            <button type="button" class="btn btn-sm btn-outline-warning" 
-                                                    data-bs-toggle="modal" 
-                                                    data-bs-target="#rateModal{{ booking.id }}"
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-warning rating-trigger"
+                                                    data-booking-id="{{ booking.id }}"
+                                                    data-resource-name="{{ booking.resource.name }}"
+                                                    data-booking-date="{{ booking.booking_date.strftime('%b %d, %Y') }}"
+                                                    data-booking-time="{{ booking.start_time.strftime('%H:%M') }} - {{ booking.end_time.strftime('%H:%M') }}"
+                                                    data-current-rating="0"
+                                                    id="ratingBtn-{{ booking.id }}"
                                                     title="Rate this resource">
-                                                <i class="bi bi-star"></i> Rate
+                                                <i class="bi bi-star"></i>
+                                                <span class="rating-btn-label">Rate</span>
                                             </button>
                                         {% endif %}
                                     {% else %}
@@ -228,65 +241,6 @@
                             </div>
                             {% endif %}
 
-                            <!-- Rating Modal for completed bookings -->
-                            {% if booking.status == 'completed' %}
-                            <div class="modal fade" id="rateModal{{ booking.id }}" tabindex="-1">
-                                <div class="modal-dialog">
-                                    <div class="modal-content">
-                                        <div class="modal-header" style="background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);">
-                                            <h5 class="modal-title text-white">
-                                                <i class="bi bi-star-fill"></i> 
-                                                {% if booking.id in rated_booking_ids %}Edit Your Rating{% else %}Rate Your Experience{% endif %}
-                                            </h5>
-                                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                                        </div>
-                                        <form method="POST" action="{{ url_for('rating.submit_rating', booking_id=booking.id) }}">
-                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                            <div class="modal-body">
-                                                <div class="text-center mb-3">
-                                                    <p class="mb-1"><strong>{{ booking.resource.name }}</strong></p>
-                                                    <p class="text-muted small mb-3">{{ booking.booking_date.strftime('%b %d, %Y') }} &bull; {{ booking.start_time.strftime('%H:%M') }} - {{ booking.end_time.strftime('%H:%M') }}</p>
-                                                </div>
-                                                
-                                                <!-- Interactive Star Rating -->
-                                                <div class="text-center mb-4">
-                                                    <p class="text-muted small mb-2">How was your experience?</p>
-                                                    <div class="star-rating-input" id="starRating{{ booking.id }}">
-                                                        {% for i in range(5, 0, -1) %}
-                                                        <input type="radio" name="rating" value="{{ i }}" id="star{{ i }}_{{ booking.id }}" 
-                                                               {% if booking.id in rated_booking_ids and user_ratings[booking.id] == i %}checked{% endif %} required>
-                                                        <label for="star{{ i }}_{{ booking.id }}" title="{{ i }} star{{ 's' if i != 1 else '' }}">
-                                                            <i class="bi bi-star-fill"></i>
-                                                        </label>
-                                                        {% endfor %}
-                                                    </div>
-                                                    <p class="rating-label text-muted small mt-1" id="ratingLabel{{ booking.id }}">
-                                                        {% if booking.id in rated_booking_ids %}
-                                                            {% set rv = user_ratings[booking.id] %}
-                                                            {% if rv == 1 %}Poor{% elif rv == 2 %}Fair{% elif rv == 3 %}Good{% elif rv == 4 %}Very Good{% elif rv == 5 %}Excellent{% endif %} ({{ rv }}/5)
-                                                        {% else %}
-                                                            Select a rating
-                                                        {% endif %}
-                                                    </p>
-                                                </div>
-                                                
-                                                <div class="mb-3">
-                                                    <label class="form-label">Comment (Optional)</label>
-                                                    <textarea class="form-control" name="comment" rows="3" placeholder="Share your experience with this resource..."></textarea>
-                                                </div>
-                                            </div>
-                                            <div class="modal-footer">
-                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                                <button type="submit" class="btn btn-warning">
-                                                    <i class="bi bi-star-fill"></i> 
-                                                    {% if booking.id in rated_booking_ids %}Update Rating{% else %}Submit Rating{% endif %}
-                                                </button>
-                                            </div>
-                                        </form>
-                                    </div>
-                                </div>
-                            </div>
-                            {% endif %}
                             {% endfor %}
                         </tbody>
                     </table>
@@ -499,25 +453,384 @@ function loadAnnouncements() {
 }
 </script>
 
-<script>
-// Star rating interactive labels
-const ratingLabels = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
+<!-- =====================================================
+     SHARED RATING MODAL (one reused for all bookings)
+===================================================== -->
+<div class="modal fade" id="sharedRatingModal" tabindex="-1" aria-labelledby="sharedRatingModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg" style="border-radius:16px;overflow:hidden">
 
-document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.star-rating-input').forEach(container => {
-        const bookingId = container.id.replace('starRating', '');
-        const labelEl = document.getElementById('ratingLabel' + bookingId);
-        
-        container.querySelectorAll('input[type="radio"]').forEach(radio => {
-            radio.addEventListener('change', function() {
-                if (labelEl) {
-                    labelEl.textContent = ratingLabels[this.value] + ' (' + this.value + '/5)';
-                    labelEl.style.color = '#f59e0b';
-                    labelEl.style.fontWeight = '600';
-                }
-            });
-        });
+      <!-- Header -->
+      <div class="modal-header border-0 pb-0"
+           style="background:linear-gradient(135deg,#f59e0b 0%,#f97316 100%);padding:20px 24px 16px">
+        <div>
+          <h5 class="modal-title text-white fw-bold mb-0" id="sharedRatingModalLabel">
+            <i class="bi bi-star-fill me-1"></i>
+            <span id="srm-title">Rate Your Experience</span>
+          </h5>
+          <p class="text-white mb-0 mt-1" style="opacity:.85;font-size:.82rem" id="srm-subtitle"></p>
+        </div>
+        <button type="button" class="btn-close btn-close-white ms-auto" data-bs-dismiss="modal"></button>
+      </div>
+
+      <!-- Body -->
+      <div class="modal-body px-4 pt-3 pb-2" id="srm-body">
+
+        <!-- Animated Stars -->
+        <div class="text-center mb-1">
+          <p class="text-muted mb-2" style="font-size:.82rem">How was your experience?</p>
+          <div class="srm-stars" id="srm-stars">
+            <!-- stars injected by JS -->
+          </div>
+          <p class="srm-label mt-2 mb-0" id="srm-label">Select a rating</p>
+        </div>
+
+        <!-- Comment -->
+        <div class="mt-3">
+          <label class="form-label text-muted" style="font-size:.82rem">Comment <span class="text-muted">(optional)</span></label>
+          <textarea class="form-control" id="srm-comment" rows="3"
+                    placeholder="Share your experience..."
+                    style="border-radius:10px;resize:none;font-size:.9rem"></textarea>
+        </div>
+
+        <!-- Success state (hidden initially) -->
+        <div id="srm-success" class="text-center py-3" style="display:none">
+          <div class="srm-success-icon">✓</div>
+          <p class="fw-bold mt-2 mb-0" style="color:#16a34a">Rating saved!</p>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="modal-footer border-0 pt-0 px-4 pb-3" id="srm-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal"
+                style="border-radius:10px;font-size:.9rem">Cancel</button>
+        <button type="button" class="btn btn-warning fw-semibold" id="srm-submit"
+                style="border-radius:10px;min-width:130px;font-size:.9rem">
+          <i class="bi bi-star-fill me-1"></i>
+          <span id="srm-submit-label">Submit Rating</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Rating CSS + JS -->
+<style>
+/* ---- Animated star row ---- */
+.srm-stars {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  flex-direction: row-reverse;   /* CSS trick: rightmost = 5 ★ */
+}
+.srm-stars input { display: none; }
+.srm-stars label {
+  font-size: 2.2rem;
+  color: #d1d5db;
+  cursor: pointer;
+  transition: transform .15s ease, color .15s ease, filter .15s ease;
+  user-select: none;
+  line-height: 1;
+}
+/* Hover: light up hovered star + all stars to the right */
+.srm-stars label:hover,
+.srm-stars label:hover ~ label {
+  color: #f59e0b;
+  transform: scale(1.25);
+  filter: drop-shadow(0 0 6px rgba(245,158,11,.6));
+}
+/* Selected: keep all stars up to selected lit */
+.srm-stars input:checked ~ label {
+  color: #f59e0b;
+  filter: drop-shadow(0 0 4px rgba(245,158,11,.4));
+}
+/* Pulse on selection */
+@keyframes starPop {
+  0%  { transform: scale(1); }
+  40% { transform: scale(1.4); }
+  70% { transform: scale(0.95); }
+  100%{ transform: scale(1.1); }
+}
+.srm-star-popped { animation: starPop .35s ease forwards; }
+
+/* ---- Rating label ---- */
+.srm-label {
+  font-size: .82rem;
+  font-weight: 600;
+  color: #6b7280;
+  min-height: 1.2em;
+  transition: color .2s;
+}
+.srm-label.active { color: #f59e0b; }
+
+/* ---- Submit button loading ---- */
+#srm-submit.loading { opacity: .7; pointer-events: none; }
+
+/* ---- Success checkmark ---- */
+.srm-success-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  background: #dcfce7;
+  color: #16a34a;
+  font-size: 1.8rem;
+  font-weight: 700;
+  animation: popIn .4s cubic-bezier(.175,.885,.32,1.275);
+}
+@keyframes popIn {
+  0%  { transform: scale(0); opacity: 0; }
+  100%{ transform: scale(1); opacity: 1; }
+}
+</style>
+
+<script>
+(function () {
+  'use strict';
+
+  const LABELS   = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
+  const COLORS   = ['', '#ef4444','#f97316','#eab308','#84cc16','#22c55e'];
+  const CSRF     = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+  // ---- DOM refs (shared modal) ----
+  const modal       = document.getElementById('sharedRatingModal');
+  const bsModal     = new bootstrap.Modal(modal);
+  const srmTitle    = document.getElementById('srm-title');
+  const srmSubtitle = document.getElementById('srm-subtitle');
+  const srmStars    = document.getElementById('srm-stars');
+  const srmLabel    = document.getElementById('srm-label');
+  const srmComment  = document.getElementById('srm-comment');
+  const srmSubmit   = document.getElementById('srm-submit');
+  const srmSubmitLbl= document.getElementById('srm-submit-label');
+  const srmBody     = document.getElementById('srm-body');
+  const srmFooter   = document.getElementById('srm-footer');
+  const srmSuccess  = document.getElementById('srm-success');
+
+  let currentBookingId  = null;
+  let currentSelected   = 0;
+
+  // ---- Build 5-star radio row ----
+  function buildStars(selected = 0) {
+    srmStars.innerHTML = '';
+    // Render 5→1 so CSS row-reverse gives correct order
+    for (let i = 5; i >= 1; i--) {
+      const inp = document.createElement('input');
+      inp.type = 'radio'; inp.name = 'srm-rating'; inp.value = i;
+      inp.id = `srm-star-${i}`;
+      if (i === selected) inp.checked = true;
+
+      const lbl = document.createElement('label');
+      lbl.setAttribute('for', `srm-star-${i}`);
+      lbl.title = `${i} star${i !== 1 ? 's' : ''}`;
+      lbl.innerHTML = '&#9733;'; // ★ unicode, sharper than bi-star-fill
+      lbl.style.fontFamily = 'inherit';
+
+      inp.addEventListener('change', () => onStarChange(i, lbl));
+      srmStars.appendChild(inp);
+      srmStars.appendChild(lbl);
+    }
+    // Reflect already-selected
+    if (selected > 0) updateLabel(selected);
+  }
+
+  function onStarChange(val, lbl) {
+    currentSelected = val;
+    updateLabel(val);
+    // Pop animation on the selected label
+    lbl.classList.remove('srm-star-popped');
+    void lbl.offsetWidth; // reflow
+    lbl.classList.add('srm-star-popped');
+  }
+
+  function updateLabel(val) {
+    srmLabel.textContent = `${LABELS[val]} (${val}/5)`;
+    srmLabel.style.color  = COLORS[val];
+    srmLabel.classList.add('active');
+  }
+
+  // ---- Open modal for a booking ----
+  async function openRatingModal(trigger) {
+    const bookingId    = trigger.dataset.bookingId;
+    const resourceName = trigger.dataset.resourceName;
+    const date         = trigger.dataset.bookingDate;
+    const time         = trigger.dataset.bookingTime;
+    const prevRating   = parseInt(trigger.dataset.currentRating || '0', 10);
+
+    currentBookingId = bookingId;
+    currentSelected  = 0;
+
+    // Reset modal state
+    srmBody.style.display    = '';
+    srmFooter.style.display  = '';
+    srmSuccess.style.display = 'none';
+    srmComment.value         = '';
+    srmLabel.textContent     = 'Select a rating';
+    srmLabel.classList.remove('active');
+    srmSubmit.classList.remove('loading');
+
+    // Set titles
+    srmTitle.textContent    = prevRating > 0 ? 'Edit Your Rating' : 'Rate Your Experience';
+    srmSubtitle.textContent = `${resourceName} · ${date} · ${time}`;
+    srmSubmitLbl.textContent= prevRating > 0 ? 'Update Rating' : 'Submit Rating';
+
+    // Build stars (with previous selection pre-lit)
+    buildStars(prevRating);
+    currentSelected = prevRating;
+
+    // Pre-fill comment from server (async, non-blocking)
+    if (prevRating > 0) {
+      try {
+        const res  = await fetch(`/ratings/get/${bookingId}`, { credentials: 'same-origin' });
+        const data = await res.json();
+        if (data.comment) srmComment.value = data.comment;
+      } catch(_) { /* non-critical */ }
+    }
+
+    bsModal.show();
+  }
+
+  // ---- Submit via AJAX ----
+  async function submitRating() {
+    if (!currentSelected || currentSelected < 1) {
+      srmLabel.textContent = '⚠ Please select a star rating';
+      srmLabel.style.color = '#ef4444';
+      srmLabel.classList.add('active');
+      // Shake stars
+      srmStars.animate(
+        [{transform:'translateX(-6px)'},{transform:'translateX(6px)'},{transform:'translateX(-4px)'},{transform:'translateX(4px)'},{transform:'translateX(0)'}],
+        {duration:350, easing:'ease-out'}
+      );
+      return;
+    }
+
+    // Loading state
+    srmSubmit.classList.add('loading');
+    srmSubmitLbl.textContent = 'Saving…';
+
+    const form = new FormData();
+    form.append('csrf_token', CSRF);
+    form.append('rating', currentSelected);
+    form.append('comment', srmComment.value.trim());
+
+    try {
+      const res  = await fetch(`/ratings/submit/${currentBookingId}`, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin',
+        body: form
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        showSuccess();
+        updateTableButton(currentBookingId, currentSelected);
+      } else {
+        showError(data.error || 'Something went wrong.');
+      }
+    } catch (e) {
+      showError('Network error. Please try again.');
+    }
+  }
+
+  // ---- Show success state inside modal, then auto-close ----
+  function showSuccess() {
+    srmBody.style.display   = 'none';
+    srmFooter.style.display = 'none';
+    srmSuccess.style.display = 'block';
+    setTimeout(() => bsModal.hide(), 1400);
+  }
+
+  // ---- Show error (reset button) ----
+  function showError(msg) {
+    srmSubmit.classList.remove('loading');
+    srmSubmitLbl.textContent = 'Submit Rating';
+    srmLabel.textContent = `⚠ ${msg}`;
+    srmLabel.style.color = '#ef4444';
+    srmLabel.classList.add('active');
+  }
+
+  // ---- Live-update the table button without page reload ----
+  function updateTableButton(bookingId, rating) {
+    const btn = document.getElementById(`ratingBtn-${bookingId}`);
+    if (!btn) return;
+
+    // Swap to solid warning button showing new rating
+    btn.classList.remove('btn-outline-warning');
+    btn.classList.add('btn-warning');
+    btn.dataset.currentRating = rating;
+
+    const labelSpan = btn.querySelector('.rating-btn-label');
+    if (labelSpan) labelSpan.textContent = `${rating}/5`;
+
+    // Ensure edit pencil icon exists
+    let pencil = btn.querySelector('.bi-pencil-square');
+    if (!pencil) {
+      pencil = document.createElement('i');
+      pencil.className = 'bi bi-pencil-square ms-1';
+      pencil.style.fontSize = '0.7rem';
+      btn.appendChild(pencil);
+    }
+
+    // Ensure star is filled
+    const starIcon = btn.querySelector('i.bi-star');
+    if (starIcon) {
+      starIcon.classList.remove('bi-star');
+      starIcon.classList.add('bi-star-fill');
+    }
+
+    // Subtle pop
+    btn.animate(
+      [{transform:'scale(1)'},{transform:'scale(1.2)'},{transform:'scale(1)'}],
+      {duration:300, easing:'ease-out'}
+    );
+
+    // Update next open's title immediately
+    btn.querySelector('[data-bs-target]');
+    btn.title = `Edit your rating (${rating}/5)`;
+  }
+
+  // ---- Wire up trigger buttons ----
+  document.addEventListener('DOMContentLoaded', () => {
+    // Delegate click on .rating-trigger
+    document.body.addEventListener('click', e => {
+      const trigger = e.target.closest('.rating-trigger');
+      if (trigger) {
+        e.preventDefault();
+        openRatingModal(trigger);
+      }
     });
-});
+
+    // Submit button
+    srmSubmit.addEventListener('click', submitRating);
+
+    // Also allow Enter in comment textarea
+    srmComment.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) submitRating();
+    });
+
+    // Inject csrf token meta if missing (Flask-WTF puts it in <head>)
+    if (!document.querySelector('meta[name="csrf-token"]')) {
+      // Fall back: grab from any form on page
+      const hiddenCsrf = document.querySelector('input[name="csrf_token"]');
+      if (hiddenCsrf) {
+        // We already captured it above via CSRF const, nothing else needed
+      }
+    }
+  });
+
+  // ---- Expose CSRF for fetch calls ----
+  // Flask-WTF injects: <meta name="csrf-token" content="..."> when using WTForms
+  // If not present, we grab it from the hidden input of any form
+  const _csrf = (() => {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta) return meta.content;
+    const inp = document.querySelector('input[name="csrf_token"]');
+    return inp ? inp.value : '';
+  })();
+  // Patch CSRF constant used in submitRating (re-read at call time)
+  Object.defineProperty(window, '_srmCsrf', { get: () => _csrf });
+
+})();
 </script>
 {% endblock %}
