@@ -433,37 +433,37 @@ def search():
                     match_score = 0.0
                     is_perfect_match = False
                     
-                    # Check participants/capacity - out of 100 points
+                    # Check participants/capacity - out of 80 points
                     if participants:
                         required_capacity = int(participants)
                         if resource.capacity >= required_capacity:
                             capacity_ratio = resource.capacity / required_capacity
                             
                             if 1.0 <= capacity_ratio <= 1.1:
-                                match_score += 100
+                                match_score += 80
                                 match_reasons.append(f"Perfect capacity match: {resource.capacity} people")
                                 is_perfect_match = True
                             elif capacity_ratio <= 1.5:
-                                match_score += 70
+                                match_score += 55
                                 match_reasons.append(f"Excellent fit: {resource.capacity} people")
                             elif capacity_ratio <= 3.5:
-                                match_score += 40
+                                match_score += 30
                                 match_reasons.append(f"Can accommodate: {resource.capacity} people")
                             else:
-                                match_score += 10
+                                match_score += 8
                                 match_reasons.append(f"Has capacity: {resource.capacity} people")
                         else:
                             is_suitable = False
                     else:
-                        match_score += 30
+                        match_score += 25
                     
-                    # Check resource type - out of 50 points
+                    # Check resource type - out of 40 points
                     if resource_type and is_suitable:
                         resource_type_lower = resource_type.lower().strip()
                         resource_actual_type = resource.resource_type.lower().strip() if resource.resource_type else ""
                         
                         if resource_type_lower == resource_actual_type or resource_type_lower in resource_actual_type or resource_actual_type in resource_type_lower:
-                            match_score += 50
+                            match_score += 40
                             match_reasons.append(f"Matches type: {resource_type}")
                         else:
                             if enforce_type:
@@ -471,23 +471,23 @@ def search():
                                 match_score = 0
                             else:
                                 # Fallback mode: don't exclude, but give lower type score
-                                match_score += 10
+                                match_score += 8
                                 match_reasons.append(f"Different type ({resource.resource_type}), but fits your capacity needs")
                     else:
-                        match_score += 25
+                        match_score += 20
                     
-                    # Price competitiveness - out of 30 points
+                    # Price competitiveness - out of 25 points
                     if is_suitable:
                         if resource.hourly_rate:
                             price_normalized = min(resource.hourly_rate / 300.0, 1.0)
-                            price_score = 30 * (1.0 - price_normalized)
+                            price_score = 25 * (1.0 - price_normalized)
                             match_score += price_score
                         else:
-                            match_score += 15
+                            match_score += 12
                         
-                        # Availability bonus - out of 20 points
+                        # Availability bonus - out of 25 points
                         if resource.is_available:
-                            match_score += 20
+                            match_score += 25
                         else:
                             match_score += 5
                     
@@ -508,7 +508,7 @@ def search():
                             avg_rating = 0
                             review_count = 0
                     
-                    match_score = max(0, min(230, match_score))
+                    match_score = max(0, min(200, match_score))
                     
                     if is_suitable and match_score > 0:
                         scored.append({

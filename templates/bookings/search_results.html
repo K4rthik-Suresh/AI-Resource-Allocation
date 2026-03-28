@@ -139,7 +139,7 @@
     <div>
         <strong>Found {{ resources|length }} suitable resource{{ 's' if resources|length != 1 else '' }}</strong>
         <p class="mb-0 small">Resources are ranked by relevance. Best matches are highlighted in green. Scores are out
-            of 230.</p>
+            of 200.</p>
     </div>
 </div>
 
@@ -151,17 +151,15 @@
         {% set match_type = item.match_type %}
         {% set is_perfect = item.is_best_match %}
 
-        <div class="card h-100 shadow-sm {% if is_perfect %}border-success{% else %}border-info{% endif %}"
-            style="border-width: {% if is_perfect %}3px{% else %}1px{% endif %}; transition: transform 0.2s;"
-            onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+        <div class="card h-100 shadow-sm search-result-card {% if is_perfect %}border-success border-3{% else %}border-info{% endif %}">
             <div class="card-body d-flex flex-column">
                 {% if is_perfect %}
                 <div class="badge bg-success mb-2 align-self-start" style="font-size: 0.85rem;">
-                    <i class="bi bi-star-fill"></i> BEST RESULT (Score: {{ "%.0f"|format(score) }}/230)
+                    <i class="bi bi-star-fill"></i> BEST RESULT (Score: {{ "%.0f"|format(score) }}/200)
                 </div>
                 {% else %}
                 <div class="badge bg-info mb-2 align-self-start" style="font-size: 0.85rem;">
-                    <i class="bi bi-star-half"></i> MOST RELEVANT (Score: {{ "%.0f"|format(score) }}/230)
+                    <i class="bi bi-star-half"></i> MOST RELEVANT (Score: {{ "%.0f"|format(score) }}/200)
                 </div>
                 {% endif %}
 

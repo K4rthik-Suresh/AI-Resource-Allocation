@@ -134,7 +134,7 @@
             <div class="card-header text-white" style="background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);">
                 <h5 class="mb-0"><i class="bi bi-star-fill"></i> Rate This Resource</h5>
             </div>
-            <div class="card-body">
+            <div class="card-body" id="rating-section-detail">
                 {% if existing_review %}
                     <!-- Already rated - show rating with edit option -->
                     <div class="text-center py-3">
@@ -173,7 +173,7 @@
                         
                         <div class="collapse mt-3" id="editRatingForm">
                             <hr>
-                            <form method="POST" action="{{ url_for('rating.submit_rating', booking_id=booking.id) }}">
+                            <form method="POST" action="{{ url_for('rating.submit_rating', booking_id=booking.id) }}" class="ajax-rating-form">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 
                                 <div class="text-center mb-4">
@@ -205,7 +205,7 @@
                     </div>
                 {% else %}
                     <!-- Not yet rated - show form -->
-                    <form method="POST" action="{{ url_for('rating.submit_rating', booking_id=booking.id) }}">
+                    <form method="POST" action="{{ url_for('rating.submit_rating', booking_id=booking.id) }}" class="ajax-rating-form">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         
                         <div class="text-center mb-4">
@@ -286,22 +286,5 @@
     </div>
 </div>
 
-<!-- Star rating JS for detail page -->
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const ratingLabels = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
-    const container = document.getElementById('starRatingDetail');
-    const labelEl = document.getElementById('ratingLabelDetail');
-    
-    if (container && labelEl) {
-        container.querySelectorAll('input[type="radio"]').forEach(radio => {
-            radio.addEventListener('change', function() {
-                labelEl.textContent = ratingLabels[this.value] + ' (' + this.value + '/5)';
-                labelEl.style.color = '#f59e0b';
-                labelEl.style.fontWeight = '600';
-            });
-        });
-    }
-});
-</script>
+{# Star rating interactivity handled by static/js/rating.js #}
 {% endblock %}

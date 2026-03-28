@@ -11,124 +11,102 @@ logger = logging.getLogger(__name__)
 rating_bp = Blueprint('rating', __name__, url_prefix='/ratings')
 
 
-def _is_ajax():
-    """Detect AJAX / fetch() requests."""
-    return (
-        request.headers.get('X-Requested-With') == 'XMLHttpRequest'
-        or request.headers.get('Accept', '').startswith('application/json')
-        or request.headers.get('Content-Type', '') == 'application/json'
-    )
-
-
 @rating_bp.route('/submit/<int:booking_id>', methods=['POST'])
 @login_required
 def submit_rating(booking_id):
-    """Submit or update a star rating for a completed booking.
-    
-    Supports both:
-    - AJAX (fetch): returns JSON { success, rating, comment, is_update }
-    - HTML form POST: redirects with flash message (backward-compatible)
-    """
-    ajax = _is_ajax()
-
-    # Determine redirect target for non-AJAX fallback
-    redirect_url = request.form.get('next', '') or url_for('booking.dashboard')
+    """Submit a one-time rating (1-5 stars) for a completed booking"""
+    # Determine redirect target (supports admin bookings page via 'next' field)
+    redirect_url = request.form.get('next', '')
+    if not redirect_url:
+        redirect_url = url_for('booking.dashboard')
+        
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or 'application/json' in request.headers.get('Accept', '')
 
     try:
         booking = Booking.query.get_or_404(booking_id)
 
         # Validate ownership
         if booking.user_id != current_user.id:
-            msg = 'You can only rate your own bookings.'
-            if ajax:
-                return jsonify({'success': False, 'error': msg}), 403
-            flash(msg, 'error')
+            if is_ajax:
+                return jsonify({'success': False, 'message': 'You can only rate your own bookings.'}), 403
+            flash('You can only rate your own bookings.', 'error')
             return redirect(redirect_url)
 
         # Validate status
         if booking.status != 'completed':
-            msg = 'You can only rate completed bookings.'
-            if ajax:
-                return jsonify({'success': False, 'error': msg}), 400
-            flash(msg, 'error')
+            if is_ajax:
+                return jsonify({'success': False, 'message': 'You can only rate completed bookings.'}), 400
+            flash('You can only rate completed bookings.', 'error')
             return redirect(redirect_url)
 
-        # Parse values
+        # Parse rating value
         rating_value = request.form.get('rating', type=int)
-        comment = request.form.get('comment', '').strip() or None
+        comment = request.form.get('comment', '').strip()
 
-        if not rating_value or not (1 <= rating_value <= 5):
-            msg = 'Please select a rating between 1 and 5 stars.'
-            if ajax:
-                return jsonify({'success': False, 'error': msg}), 400
-            flash(msg, 'error')
-            return redirect(redirect_url)
+        if not rating_value or rating_value < 1 or rating_value > 5:
+            if is_ajax:
+                return jsonify({'success': False, 'message': 'Please select a rating between 1 and 5 stars.'}), 400
+            flash('Please select a rating between 1 and 5 stars.', 'error')
+            return redirect(url_for('booking.view_booking', booking_id=booking_id))
 
-        # Upsert review
-        existing = ResourceReview.query.filter_by(
+        # Check if already rated — if so, update instead of creating new
+        existing_review = ResourceReview.query.filter_by(
             user_id=current_user.id,
             booking_id=booking_id
         ).first()
 
-        if existing:
-            existing.rating = rating_value
-            existing.comment = comment
+        if existing_review:
+            # Update existing review
+            existing_review.rating = rating_value
+            existing_review.comment = comment if comment else None
+            review = existing_review
             is_update = True
         else:
+            # Create new review
             review = ResourceReview(
                 user_id=current_user.id,
                 resource_id=booking.resource_id,
                 booking_id=booking.id,
                 rating=rating_value,
-                comment=comment
+                comment=comment if comment else None
             )
             db.session.add(review)
             is_update = False
 
         db.session.commit()
 
-        logger.info(
-            f"User {current_user.id} {'updated' if is_update else 'submitted'} "
-            f"rating {rating_value}★ for resource {booking.resource_id} "
-            f"(booking {booking_id})"
-        )
+        action = "updated" if is_update else "rated"
+        logger.info(f"User {current_user.id} {action} resource {booking.resource_id} "
+                     f"({rating_value} stars) via booking {booking_id}")
 
-        if ajax:
+        msg = 'Thank you, your rating has been successfully updated.' if is_update else 'Thank you, your rating has been successfully submitted.'
+        
+        if is_ajax:
             return jsonify({
                 'success': True,
+                'message': msg,
                 'rating': rating_value,
-                'comment': comment,
                 'is_update': is_update,
-                'resource_name': booking.resource.name
+                'booking_id': booking_id
             })
 
-        action = "updated" if is_update else "submitted"
-        flash(
-            f'Rating {action}! You rated {booking.resource.name} '
-            f'{rating_value} star{"s" if rating_value != 1 else ""}.',
-            'success'
-        )
+        flash(msg, 'success')
         return redirect(redirect_url)
 
     except Exception as e:
-        logger.error(f"Error submitting rating for booking {booking_id}: {e}", exc_info=True)
+        logger.error(f"Error submitting rating: {e}")
         db.session.rollback()
-        if ajax:
-            return jsonify({'success': False, 'error': 'Failed to save rating. Please try again.'}), 500
+        if is_ajax:
+            return jsonify({'success': False, 'message': 'Failed to submit rating. Please try again.'}), 500
         flash('Failed to submit rating. Please try again.', 'error')
         return redirect(redirect_url)
 
 
-@rating_bp.route('/get/<int:booking_id>')
+@rating_bp.route('/check/<int:booking_id>')
 @login_required
-def get_rating(booking_id):
-    """Return the current user's existing rating for a booking (for pre-populating the edit modal)."""
+def check_rating(booking_id):
+    """Check if a booking has already been rated (AJAX endpoint)"""
     try:
-        booking = Booking.query.get_or_404(booking_id)
-
-        if booking.user_id != current_user.id:
-            return jsonify({'error': 'Unauthorized'}), 403
-
         review = ResourceReview.query.filter_by(
             user_id=current_user.id,
             booking_id=booking_id
@@ -138,28 +116,9 @@ def get_rating(booking_id):
             return jsonify({
                 'is_rated': True,
                 'rating': review.rating,
-                'comment': review.comment or ''
+                'comment': review.comment
             })
 
-        return jsonify({'is_rated': False, 'rating': 0, 'comment': ''})
-
-    except Exception as e:
-        logger.error(f"Error fetching rating for booking {booking_id}: {e}")
-        return jsonify({'is_rated': False, 'rating': 0, 'comment': ''}), 500
-
-
-@rating_bp.route('/check/<int:booking_id>')
-@login_required
-def check_rating(booking_id):
-    """Check if a booking has already been rated (legacy AJAX endpoint, kept for compatibility)."""
-    try:
-        review = ResourceReview.query.filter_by(
-            user_id=current_user.id,
-            booking_id=booking_id
-        ).first()
-
-        if review:
-            return jsonify({'is_rated': True, 'rating': review.rating, 'comment': review.comment})
         return jsonify({'is_rated': False})
 
     except Exception as e:
@@ -169,14 +128,19 @@ def check_rating(booking_id):
 
 @rating_bp.route('/resource/<int:resource_id>')
 def resource_ratings(resource_id):
-    """Get average rating and reviews for a resource (public JSON endpoint)."""
+    """Get average rating and reviews for a resource (public JSON endpoint)"""
     try:
         reviews = ResourceReview.query.filter_by(resource_id=resource_id).all()
 
         if not reviews:
-            return jsonify({'average_rating': 0, 'total_reviews': 0, 'reviews': []})
+            return jsonify({
+                'average_rating': 0,
+                'total_reviews': 0,
+                'reviews': []
+            })
 
         avg_rating = sum(r.rating for r in reviews) / len(reviews)
+
         review_list = [{
             'rating': r.rating,
             'comment': r.comment,
