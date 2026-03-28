@@ -51,6 +51,12 @@ tests = [
     # abbreviated weekday names
     ("next mon", next_weekday(0), "next mon (abbreviated)"),
     ("next fri", next_weekday(4), "next fri (abbreviated)"),
+    
+    # generic "weekday" literal tests
+    ("on coming weekday", (today + timedelta(days=3 if today.weekday() == 4 else 2 if today.weekday() == 5 else 1)).strftime('%Y-%m-%d'), "coming weekday"),
+    ("on next weekday", (today + timedelta(days=3 if today.weekday() == 4 else 2 if today.weekday() == 5 else 1)).strftime('%Y-%m-%d'), "next weekday"),
+    ("on weekday", (today + timedelta(days=3 if today.weekday() == 4 else 2 if today.weekday() == 5 else 1)).strftime('%Y-%m-%d'), "on weekday"),
+    ("this weekday", (today + timedelta(days=3 if today.weekday() == 4 else 2 if today.weekday() == 5 else 1)).strftime('%Y-%m-%d'), "this weekday"),
 ]
 
 print(f"\n===== WEEKDAY DATE EXTRACTION TEST =====")

@@ -140,7 +140,7 @@
                                 <td>{{ booking.booking_date }}</td>
                                 <td>{{ booking.start_time|format_time_range(booking.end_time) }}</td>
                                 <td>
-                                    <span class="badge badge-{% if booking.status == 'confirmed' %}success{% elif booking.status == 'completed' %}primary{% else %}secondary{% endif %}">
+                                    <span class="badge badge-{% if booking.status == 'confirmed' %}success{% elif booking.status == 'pending' %}warning{% else %}secondary{% endif %}">
                                         {{ booking.status|upper }}
                                     </span>
                                 </td>

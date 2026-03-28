@@ -1,47 +1,8 @@
-"""
-================================================================================
-BOOKING ROUTES - Booking Management and NLP Search
-================================================================================
 
-DESCRIPTION:
-    Handles all booking operations including creation, search, modification, and cancellation.
-    Integrates AI module for natural language booking search.
-
-ROUTES:
-    GET /bookings/dashboard - User's booking history
-    GET /bookings/create - Create booking form
-    POST /bookings/create - Create new booking
-    GET /bookings/detail/<id> - View booking details
-    POST /bookings/cancel/<id> - Request cancellation
-    GET /bookings/search - Search results page
-    POST /bookings/search - NLP booking search
-
-FEATURES:
-    - Natural language booking search using AI module
-    - Conflict detection (prevents double-booking)
-    - Cost calculation based on resource rates
-    - Booking status tracking (pending, confirmed, cancelled)
-    - Cancellation request system
-    - Multi-system context awareness
-    - Booking history and statistics
-
-AI BOOKING SEARCH:
-    Transforms natural language into booking query. Example:
-    "I need a conference room for 2 people from tomorrow for 5 days 
-     from 10am to 5pm" →
-    Searches for: Room-type resource, capacity ≥ 2, available tomorrow 
-    for 5 days, 10am-5pm timeframe
-
-CONFLICT DETECTION:
-    Checks for overlapping bookings on same resource, same date.
-    Prevents booking if time slots conflict.
-
-================================================================================
-"""
 
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, session
 from flask_login import login_required, current_user
-from models import db, Booking, Resource, BookingHistory, User, ResourceSystem, UserFavorite, SystemAnnouncement
+from models import db, Booking, Resource, BookingHistory, User, ResourceSystem, UserFavorite, SystemAnnouncement, ResourceReview
 from datetime import datetime, date, time, timedelta, timezone
 from decimal import Decimal
 from ai.ai_module import AIModule
@@ -165,6 +126,19 @@ def dashboard():
     
     bookings = query.order_by(Booking.booking_date.desc()).paginate(page=page, per_page=10)
     
+    # Fetch which bookings the user has already rated
+    rated_booking_ids = set()
+    user_ratings = {}  # booking_id -> rating value
+    if bookings.items:
+        booking_ids = [b.id for b in bookings.items]
+        reviews = ResourceReview.query.filter(
+            ResourceReview.user_id == current_user.id,
+            ResourceReview.booking_id.in_(booking_ids)
+        ).all()
+        for review in reviews:
+            rated_booking_ids.add(review.booking_id)
+            user_ratings[review.booking_id] = review.rating
+    
     suggestions = ai_module.get_smart_suggestions(current_user.id, active_system_id)
     
     total_spent_raw = db.session.query(db.func.sum(Booking.cost)).filter(
@@ -195,7 +169,9 @@ def dashboard():
                          bookings=bookings, 
                          stats=stats, 
                          suggestions=suggestions,
-                         active_system=active_system)
+                         active_system=active_system,
+                         rated_booking_ids=rated_booking_ids,
+                         user_ratings=user_ratings)
 
 @booking_bp.route('/create', methods=['GET', 'POST'])
 @login_required
@@ -386,7 +362,15 @@ def view_booking(booking_id):
         flash('Unauthorized', 'error')
         return redirect(url_for('booking.dashboard'))
     
-    return render_template('bookings/detail.html', booking=booking)
+    # Check for existing review on this booking
+    existing_review = None
+    if booking.status == 'completed':
+        existing_review = ResourceReview.query.filter_by(
+            user_id=current_user.id,
+            booking_id=booking_id
+        ).first()
+    
+    return render_template('bookings/detail.html', booking=booking, existing_review=existing_review)
 
 @booking_bp.route('/search', methods=['GET', 'POST'])
 @login_required
@@ -433,6 +417,15 @@ def search():
                 scored = []
                 resource_type = booking_params.get('resource_type')
                 participants = booking_params.get('participants')
+                
+                # Pre-fetch average ratings for all resources in one query
+                from sqlalchemy import func
+                rating_data = db.session.query(
+                    ResourceReview.resource_id,
+                    func.avg(ResourceReview.rating).label('avg_rating'),
+                    func.count(ResourceReview.id).label('review_count')
+                ).group_by(ResourceReview.resource_id).all()
+                rating_map = {r.resource_id: {'avg': float(r.avg_rating), 'count': r.review_count} for r in rating_data}
                 
                 for resource in resources_list:
                     is_suitable = True
@@ -498,7 +491,24 @@ def search():
                         else:
                             match_score += 5
                     
-                    match_score = max(0, min(200, match_score))
+                    # User rating bonus - out of 30 points
+                    resource_rating = rating_map.get(resource.id)
+                    avg_rating = 0
+                    review_count = 0
+                    if is_suitable:
+                        if resource_rating:
+                            avg_rating = resource_rating['avg']
+                            review_count = resource_rating['count']
+                            rating_score = (avg_rating / 5.0) * 30
+                            match_score += rating_score
+                            match_reasons.append(f"User rating: {avg_rating:.1f}/5 ({review_count} review{'s' if review_count != 1 else ''})")
+                        else:
+                            # Unrated resources get a neutral score
+                            match_score += 15
+                            avg_rating = 0
+                            review_count = 0
+                    
+                    match_score = max(0, min(230, match_score))
                     
                     if is_suitable and match_score > 0:
                         scored.append({
@@ -506,7 +516,9 @@ def search():
                             'relevance_score': match_score,
                             'match_reasons': match_reasons,
                             'is_best_match': is_perfect_match,
-                            'match_type': 'BEST RESULT' if is_perfect_match else 'MOST RELEVANT'
+                            'match_type': 'BEST RESULT' if is_perfect_match else 'MOST RELEVANT',
+                            'avg_rating': round(avg_rating, 1),
+                            'review_count': review_count
                         })
                 
                 return scored

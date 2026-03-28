@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
-from models import db, User, Resource, Booking, BookingHistory, ResourceSystem
+from models import db, User, Resource, Booking, BookingHistory, ResourceSystem, ResourceReview
 from datetime import datetime, timedelta, date
 from sqlalchemy import func
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -45,12 +45,38 @@ def dashboard():
     
     recent_bookings = query.limit(5).all()
     
+    # Auto-update expired bookings to 'completed' status
+    from routes.booking_routes import mark_expired_bookings_as_completed
+    mark_expired_bookings_as_completed()
+    
+    # Get admin's own bookings (admin is also a user) - paginated
+    my_page = request.args.get('my_page', 1, type=int)
+    my_bookings = Booking.query.filter_by(
+        user_id=current_user.id
+    ).order_by(Booking.booking_date.desc()).paginate(page=my_page, per_page=10)
+    
+    # Fetch which of admin's bookings have been rated
+    rated_booking_ids = set()
+    user_ratings = {}
+    if my_bookings.items:
+        my_booking_ids = [b.id for b in my_bookings.items]
+        reviews = ResourceReview.query.filter(
+            ResourceReview.user_id == current_user.id,
+            ResourceReview.booking_id.in_(my_booking_ids)
+        ).all()
+        for review in reviews:
+            rated_booking_ids.add(review.booking_id)
+            user_ratings[review.booking_id] = review.rating
+    
     return render_template('admin/dashboard.html',
                          total_users=total_users,
                          total_bookings=total_bookings,
                          total_resources=total_resources,
                          total_revenue=total_revenue,
-                         recent_bookings=recent_bookings)
+                         recent_bookings=recent_bookings,
+                         my_bookings=my_bookings,
+                         rated_booking_ids=rated_booking_ids,
+                         user_ratings=user_ratings)
 
 @admin_bp.route('/analytics')
 @login_required
@@ -258,7 +284,22 @@ def manage_bookings():
     # else: 'all' - no filter, show all
     
     bookings = query.paginate(page=page, per_page=20)
-    return render_template('admin/bookings.html', bookings=bookings, status=status)
+
+    # Fetch which bookings the admin has already rated (admin is also a user)
+    rated_booking_ids = set()
+    user_ratings = {}  # booking_id -> rating value
+    if bookings.items:
+        booking_ids = [b.id for b in bookings.items]
+        reviews = ResourceReview.query.filter(
+            ResourceReview.user_id == current_user.id,
+            ResourceReview.booking_id.in_(booking_ids)
+        ).all()
+        for review in reviews:
+            rated_booking_ids.add(review.booking_id)
+            user_ratings[review.booking_id] = review.rating
+
+    return render_template('admin/bookings.html', bookings=bookings, status=status,
+                         rated_booking_ids=rated_booking_ids, user_ratings=user_ratings)
 
 @admin_bp.route('/manage-resources')
 @login_required

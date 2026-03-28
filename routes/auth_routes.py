@@ -1,45 +1,4 @@
-"""
-================================================================================
-AUTHENTICATION ROUTES - User Login/Register/Logout
-================================================================================
 
-DESCRIPTION:
-    Handles user authentication including login, registration, logout, and password management.
-
-ROUTES:
-    GET /auth/login - Login page
-    POST /auth/login - Process login
-    GET /auth/register - Registration page
-    POST /auth/register - Create new user
-    GET /auth/logout - Logout user
-    POST /auth/change-password - Change password
-
-SECURITY FEATURES:
-    - Password hashing with bcrypt
-    - Brute force protection: Max 5 login attempts, 15-minute lockout
-    - Email validation (RFC 5322 compliant)
-    - Password strength requirements:
-        * Minimum 12 characters
-        * Uppercase and lowercase letters
-        * Numbers and special characters
-    - Session management with Flask-Login
-    - CSRF protection on all forms
-    - Audit logging of auth events
-
-PASSWORD REQUIREMENTS:
-    - Minimum 12 characters
-    - At least 1 uppercase letter (A-Z)
-    - At least 1 lowercase letter (a-z)
-    - At least 1 number (0-9)
-    - At least 1 special character (!@#$%^&*(),.?":{}|<>)
-
-EXAMPLE VALID PASSWORDS:
-    - Admin@123456
-    - SecurePass!2024
-    - MyP@ssw0rd123
-
-================================================================================
-"""
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from flask_login import login_user, logout_user, current_user, login_required

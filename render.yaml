@@ -13,7 +13,7 @@ services:
       - key: SECRET_KEY
         generateValue: true
       - key: GROQ_API_KEY
-        sync: false  # You'll set this manually in dashboard
+        sync: false  # Set this in Render dashboard → Environment
       - key: FLASK_ENV
         value: production
       - key: DATABASE_URL

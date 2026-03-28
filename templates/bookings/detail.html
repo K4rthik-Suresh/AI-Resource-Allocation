@@ -20,10 +20,10 @@
                         <p>
                             {% if booking.status == 'confirmed' %}
                                 <span class="badge bg-success">{{ booking.status.upper() }}</span>
+                            {% elif booking.status == 'pending' %}
+                                <span class="badge bg-warning">{{ booking.status.upper() }}</span>
                             {% elif booking.status == 'cancelled' %}
                                 <span class="badge bg-danger">{{ booking.status.upper() }}</span>
-                            {% elif booking.status == 'completed' %}
-                                <span class="badge bg-primary">{{ booking.status.upper() }}</span>
                             {% else %}
                                 <span class="badge bg-secondary">{{ booking.status.upper() }}</span>
                             {% endif %}
@@ -100,7 +100,7 @@
 
         <!-- Action Buttons -->
         <div class="mt-4 d-flex gap-2">
-            {% if booking.status != 'cancelled' %}
+            {% if booking.status != 'cancelled' and booking.status != 'completed' %}
                 <form method="POST" action="{{ url_for('booking.cancel_booking', booking_id=booking.id) }}" style="display: inline;">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to cancel this booking?');">
@@ -127,6 +127,113 @@
                 <i class="bi bi-arrow-left"></i> Back to My Bookings
             </a>
         </div>
+
+        <!-- Rating Section for Completed Bookings -->
+        {% if booking.status == 'completed' %}
+        <div class="card mt-4 shadow-sm border-0">
+            <div class="card-header text-white" style="background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);">
+                <h5 class="mb-0"><i class="bi bi-star-fill"></i> Rate This Resource</h5>
+            </div>
+            <div class="card-body">
+                {% if existing_review %}
+                    <!-- Already rated - show rating with edit option -->
+                    <div class="text-center py-3">
+                        <p class="text-muted mb-2">Your Rating</p>
+                        <div class="star-rating-display mb-2">
+                            {% for i in range(1, 6) %}
+                                {% if i <= existing_review.rating %}
+                                    <i class="bi bi-star-fill" style="color: #f59e0b; font-size: 1.75rem;"></i>
+                                {% else %}
+                                    <i class="bi bi-star" style="color: #d1d5db; font-size: 1.75rem;"></i>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                        <p class="fw-bold mb-1" style="color: #f59e0b;">{{ existing_review.rating }}/5 — 
+                            {% if existing_review.rating == 1 %}Poor
+                            {% elif existing_review.rating == 2 %}Fair
+                            {% elif existing_review.rating == 3 %}Good
+                            {% elif existing_review.rating == 4 %}Very Good
+                            {% elif existing_review.rating == 5 %}Excellent
+                            {% endif %}
+                        </p>
+                        {% if existing_review.comment %}
+                        <div class="mt-3 p-3 bg-light rounded text-start">
+                            <p class="small text-muted mb-1"><i class="bi bi-chat-left-text"></i> Your Comment</p>
+                            <p class="mb-0">{{ existing_review.comment }}</p>
+                        </div>
+                        {% endif %}
+                        <p class="text-muted small mt-2 mb-3">
+                            <i class="bi bi-check-circle text-success"></i> Rated on {{ existing_review.created_at.strftime('%B %d, %Y') }}
+                        </p>
+                        
+                        <!-- Edit Rating Toggle -->
+                        <button class="btn btn-sm btn-outline-warning" type="button" data-bs-toggle="collapse" data-bs-target="#editRatingForm" aria-expanded="false">
+                            <i class="bi bi-pencil-square"></i> Edit Rating
+                        </button>
+                        
+                        <div class="collapse mt-3" id="editRatingForm">
+                            <hr>
+                            <form method="POST" action="{{ url_for('rating.submit_rating', booking_id=booking.id) }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                
+                                <div class="text-center mb-4">
+                                    <p class="text-muted mb-2">Update your rating</p>
+                                    <div class="star-rating-input" id="starRatingDetail">
+                                        {% for i in range(5, 0, -1) %}
+                                        <input type="radio" name="rating" value="{{ i }}" id="starDetail{{ i }}" 
+                                               {% if existing_review.rating == i %}checked{% endif %} required>
+                                        <label for="starDetail{{ i }}" title="{{ i }} star{{ 's' if i != 1 else '' }}">
+                                            <i class="bi bi-star-fill"></i>
+                                        </label>
+                                        {% endfor %}
+                                    </div>
+                                    <p class="rating-label text-muted small mt-1" id="ratingLabelDetail">
+                                        {% if existing_review.rating == 1 %}Poor{% elif existing_review.rating == 2 %}Fair{% elif existing_review.rating == 3 %}Good{% elif existing_review.rating == 4 %}Very Good{% elif existing_review.rating == 5 %}Excellent{% endif %} ({{ existing_review.rating }}/5)
+                                    </p>
+                                </div>
+                                
+                                <div class="mb-3 text-start">
+                                    <label class="form-label">Comment (Optional)</label>
+                                    <textarea class="form-control" name="comment" rows="3" placeholder="Share your experience with this resource...">{{ existing_review.comment or '' }}</textarea>
+                                </div>
+                                
+                                <button type="submit" class="btn btn-warning w-100">
+                                    <i class="bi bi-star-fill"></i> Update Rating
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                {% else %}
+                    <!-- Not yet rated - show form -->
+                    <form method="POST" action="{{ url_for('rating.submit_rating', booking_id=booking.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <div class="text-center mb-4">
+                            <p class="text-muted mb-2">How was your experience with <strong>{{ booking.resource.name }}</strong>?</p>
+                            <div class="star-rating-input" id="starRatingDetail">
+                                {% for i in range(5, 0, -1) %}
+                                <input type="radio" name="rating" value="{{ i }}" id="starDetail{{ i }}" required>
+                                <label for="starDetail{{ i }}" title="{{ i }} star{{ 's' if i != 1 else '' }}">
+                                    <i class="bi bi-star-fill"></i>
+                                </label>
+                                {% endfor %}
+                            </div>
+                            <p class="rating-label text-muted small mt-1" id="ratingLabelDetail">Select a rating</p>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Comment (Optional)</label>
+                            <textarea class="form-control" name="comment" rows="3" placeholder="Share your experience with this resource..."></textarea>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-warning w-100">
+                            <i class="bi bi-star-fill"></i> Submit Rating
+                        </button>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
     </div>
 
     <!-- Resource Information Sidebar -->
@@ -178,4 +285,23 @@
         </div>
     </div>
 </div>
+
+<!-- Star rating JS for detail page -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ratingLabels = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
+    const container = document.getElementById('starRatingDetail');
+    const labelEl = document.getElementById('ratingLabelDetail');
+    
+    if (container && labelEl) {
+        container.querySelectorAll('input[type="radio"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                labelEl.textContent = ratingLabels[this.value] + ' (' + this.value + '/5)';
+                labelEl.style.color = '#f59e0b';
+                labelEl.style.fontWeight = '600';
+            });
+        });
+    }
+});
+</script>
 {% endblock %}

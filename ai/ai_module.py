@@ -1,23 +1,4 @@
-"""
-================================================================================
-AI MODULE - Groq-Powered Natural Language Processing for Booking
-================================================================================
 
-DESCRIPTION:
-    Converts natural language text into structured booking requirements using 
-    Groq's advanced LLM for intelligent understanding of booking requests.
-
-KEY FEATURES:
-    - Intelligent date extraction: "tomorrow", "next Monday", "8th February"
-    - Smart time extraction: "10am", "2:30pm", "10:00 - 17:00", "morning"
-    - Duration parsing: "5 days", "2 hours", "full day"
-    - Resource type detection: "conference room", "lab", "auditorium"
-    - Capacity extraction: "2 people", "10 seats"
-    - Natural conversation understanding with Groq LLM
-    - Context-aware booking interpretation
-
-================================================================================
-"""
 
 import os
 import re
@@ -178,6 +159,7 @@ Rules:
   * "next [weekday]" (e.g., "next monday") MUST jump 1 to 7 days ahead to the NEXT occurrence of that day.
   * "this [weekday]" or "on [weekday]" MUST pick the upcoming occurrence (0 to 6 days ahead).
   * A bare weekday like "monday" also means the upcoming occurrence.
+  * The generic word "weekday" (e.g., "next weekday", "coming weekday", "on weekday") means the closest upcoming Monday through Friday (usually tomorrow, unless today is Friday or Saturday).
   * "in X days" means exactly X days from today.
 - For 2-digit years, assume 2000s (e.g., 26 = 2026)
 - Time ranges like "10am to 5pm" should set both start_time and end_time
@@ -338,6 +320,25 @@ Return ONLY the JSON object, nothing else."""
                 target_date = today + timedelta(days=days_ahead)
                 print(f"[v0] Extracted 'this/on {weekday_str}' date: {target_date.strftime('%Y-%m-%d')}")
                 return target_date.strftime('%Y-%m-%d')
+        
+        # Pattern: generic literal "weekday" ("next weekday", "coming weekday", "on weekday", "this weekday")
+        weekday_literal_match = re.search(r'(?:next|coming|this|on|for)?\s*\bweekday\b', text, re.IGNORECASE)
+        if weekday_literal_match:
+            today = datetime.now()
+            # Find the next available Mon-Fri (0-4)
+            # If today is Mon-Thu (0-3), next weekday is tomorrow (+1)
+            # If today is Fri (4), next is Mon (+3)
+            # If today is Sat (5), next is Mon (+2)
+            # If today is Sun (6), next is Mon (+1)
+            if today.weekday() == 4:
+                days_ahead = 3
+            elif today.weekday() == 5:
+                days_ahead = 2
+            else:
+                days_ahead = 1
+            target_date = today + timedelta(days=days_ahead)
+            print(f"[v0] Extracted generic 'weekday' date: {target_date.strftime('%Y-%m-%d')}")
+            return target_date.strftime('%Y-%m-%d')
         
         # Pattern: bare weekday name "monday", "friday" (without next/this/on prefix)
         # Only match if it's a standalone weekday reference, not part of another matched pattern

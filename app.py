@@ -1,68 +1,4 @@
-"""
-================================================================================
-AI-ENABLED MULTI-SYSTEM RESOURCE BOOKING SYSTEM
-Main Flask Application File
-================================================================================
 
-DESCRIPTION:
-    This is the main Flask application file that initializes and configures 
-    the entire resource booking system with AI-powered natural language processing.
-
-FEATURES:
-    - Multi-facility/system support (Discovery-First Architecture)
-    - AI-powered natural language booking search
-    - User authentication with password hashing (bcrypt)
-    - Security: CSRF protection, rate limiting, CSP, HTTPS headers
-    - Session-based system context (one active facility per user)
-    - Geolocation-based facility discovery
-    - Complete booking management with conflict detection
-    - Admin dashboard for facility management
-
-KEY TECHNOLOGIES:
-    - Flask: Web framework
-    - SQLAlchemy: ORM for database operations
-    - Flask-Login: User authentication and session management
-    - Flask-Bcrypt: Password hashing for security
-    - Flask-WTF: CSRF protection
-    - Flask-Limiter: Rate limiting
-    - Flask-Talisman: Security headers
-
-DATABASE:
-    - SQLite database: resource_booking.db
-    - Tables: users, resource_systems, resources, bookings, user_resource_systems, etc.
-
-ROUTES:
-    - Blueprint auth_bp: Login/Register (/auth/*)
-    - Blueprint resource_bp: Resource listing/details (/resources/*)
-    - Blueprint booking_bp: Booking management (/bookings/*)
-    - Blueprint admin_bp: Admin dashboard (/admin/*)
-    - Blueprint ai_bp: NLP search (/ai/*)
-    - Blueprint system_bp: Facility discovery (/system/*)
-
-SECURITY FEATURES:
-    - Password hashing with bcrypt (12+ chars, mixed case, numbers, symbols)
-    - Session cookies: Secure, HttpOnly, SameSite
-    - CSRF tokens for all forms
-    - Rate limiting: 200/day, 50/hour per IP
-    - Content Security Policy (CSP)
-    - SQL injection prevention (SQLAlchemy parameterized queries)
-    - XSS protection
-    - HSTS (HTTP Strict Transport Security)
-
-HOW TO RUN:
-    1. pip install -r requirements.txt
-    2. python init_system.py
-    3. python create_users.py
-    4. python app.py
-    
-    Then open: http://localhost:5000
-
-LOGIN CREDENTIALS:
-    Admin: admin / Admin@123456
-    User: user1 / User@1234567
-
-================================================================================
-"""
 
 from flask import Flask, render_template, redirect, url_for, request, jsonify, session
 from database import db
@@ -184,6 +120,7 @@ from routes.system_routes import system_bp
 from routes.favorites_routes import favorites_bp  # Phase 1: Favorites
 from routes.export_routes import export_bp  # Phase 1: CSV Export
 from routes.announcements_routes import announcements_bp  # Phase 1: Announcements
+from routes.rating_routes import rating_bp  # Phase 1: Ratings
 
 # Register blueprints
 app.register_blueprint(auth_bp)
@@ -195,6 +132,7 @@ app.register_blueprint(system_bp)
 app.register_blueprint(favorites_bp)  # Phase 1: Favorites
 app.register_blueprint(export_bp)  # Phase 1: CSV Export
 app.register_blueprint(announcements_bp)  # Phase 1: Announcements
+app.register_blueprint(rating_bp)  # Phase 1: Ratings
 
 @login_manager.user_loader
 def load_user(user_id):

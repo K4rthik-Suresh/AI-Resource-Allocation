@@ -1,32 +1,5 @@
-"""
-================================================================================
-RESOURCE ROUTES - Resource Listing and Details
-================================================================================
 
-DESCRIPTION:
-    Handles resource discovery, viewing, and availability checking.
 
-ROUTES:
-    GET /resources/ - List all resources
-    GET /resources/<id> - View resource details
-    GET /resources/<id>/available - Check availability
-
-FEATURES:
-    - Resource listing with filters (type, capacity, price range)
-    - Detailed resource information (capacity, features, pricing, location)
-    - Availability calendar
-    - Booking history for each resource
-    - Feature display (square footage, amenities, etc.)
-    - Multi-system resource filtering
-
-RESOURCE TYPES:
-    - room: Conference rooms, meeting rooms
-    - lab: Research labs, testing facilities
-    - auditorium: Large venues, presentation halls
-    - equipment: Tools, machinery, devices
-
-================================================================================
-"""
 
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
 from flask_login import login_required, current_user

@@ -733,3 +733,59 @@ footer {
     margin-bottom: 0.5rem;
   }
 }
+
+/* ============ Star Rating Styles ============ */
+
+/* Interactive star rating input (CSS-only hover with reverse direction trick) */
+.star-rating-input {
+  display: inline-flex;
+  flex-direction: row-reverse;
+  gap: 4px;
+  font-size: 2rem;
+}
+
+.star-rating-input input[type="radio"] {
+  display: none;
+}
+
+.star-rating-input label {
+  cursor: pointer;
+  color: #d1d5db;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.star-rating-input label:hover,
+.star-rating-input label:hover ~ label {
+  color: #f59e0b;
+  transform: scale(1.15);
+}
+
+.star-rating-input input[type="radio"]:checked ~ label {
+  color: #f59e0b;
+}
+
+/* Static star rating display */
+.star-rating-display {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.star-rating-display i {
+  font-size: 1.75rem;
+}
+
+/* Rating badge in tables */
+.badge .bi-star-fill {
+  font-size: 0.75rem;
+}
+
+/* Rating card */
+.rating-card {
+  border-left: 4px solid #f59e0b;
+  background: #fffbeb;
+}
+
+/* Rating label animation */
+.rating-label {
+  transition: all 0.2s ease;
+}

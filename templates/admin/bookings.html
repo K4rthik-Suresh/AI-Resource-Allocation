@@ -14,9 +14,6 @@
         <a href="{{ url_for('admin.manage_bookings', status='all') }}" class="btn {% if status == 'all' %}btn-dark{% else %}btn-outline-dark{% endif %} btn-sm">
             <i class="bi bi-list"></i> All
         </a>
-        <a href="{{ url_for('admin.manage_bookings', status='pending') }}" class="btn {% if status == 'pending' %}btn-warning{% else %}btn-outline-warning{% endif %} btn-sm">
-            <i class="bi bi-clock-history"></i> Pending
-        </a>
         <a href="{{ url_for('admin.manage_bookings', status='confirmed') }}" class="btn {% if status == 'confirmed' %}btn-success{% else %}btn-outline-success{% endif %} btn-sm">
             <i class="bi bi-check-circle"></i> Confirmed
         </a>
@@ -55,6 +52,7 @@
                     <th class="px-4 py-3 fw-600">Time</th>
                     <th class="px-4 py-3 fw-600">Cost</th>
                     <th class="px-4 py-3 fw-600">Status</th>
+                    <th class="px-4 py-3 fw-600">Rating</th>
                     <th class="px-4 py-3 fw-600 text-center">Actions</th>
                 </tr>
             </thead>
@@ -74,11 +72,7 @@
                         <td class="px-4 py-3">{{ booking.start_time.strftime('%H:%M') }} - {{ booking.end_time.strftime('%H:%M') }}</td>
                         <td class="px-4 py-3 fw-bold">${{ "%.2f"|format(booking.cost) }}</td>
                         <td class="px-4 py-3">
-                            {% if booking.status == 'pending' %}
-                                <span class="badge bg-warning text-dark">
-                                    <i class="bi bi-clock"></i> Pending
-                                </span>
-                            {% elif booking.status == 'confirmed' %}
+                            {% if booking.status == 'confirmed' %}
                                 <span class="badge bg-success">
                                     <i class="bi bi-check-circle"></i> Confirmed
                                 </span>
@@ -96,6 +90,29 @@
                                 <span class="badge bg-danger mt-1">
                                     <i class="bi bi-exclamation-triangle"></i> Cancel Req
                                 </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3">
+                            {% if booking.status == 'completed' and booking.user_id == current_user.id %}
+                                {% if booking.id in rated_booking_ids %}
+                                    <button type="button" class="btn btn-sm btn-warning" 
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#rateModal{{ booking.id }}"
+                                            title="Edit your rating ({{ user_ratings[booking.id] }}/5)">
+                                        <i class="bi bi-star-fill"></i> {{ user_ratings[booking.id] }}/5 <i class="bi bi-pencil-square ms-1" style="font-size: 0.7rem;"></i>
+                                    </button>
+                                {% else %}
+                                    <button type="button" class="btn btn-sm btn-outline-warning" 
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#rateModal{{ booking.id }}"
+                                            title="Rate this resource">
+                                        <i class="bi bi-star"></i> Rate
+                                    </button>
+                                {% endif %}
+                            {% elif booking.status == 'completed' %}
+                                <span class="text-muted small">—</span>
+                            {% else %}
+                                <span class="text-muted small">—</span>
                             {% endif %}
                         </td>
                         <td class="px-4 py-3 text-center">
@@ -117,22 +134,7 @@
                                         </button>
                                     </form>
                                 </div>
-                            {% elif booking.status == 'pending' %}
-                                <div class="btn-group-vertical w-100 gap-2">
-                                    <form method="POST" action="{{ url_for('admin.confirm_booking', booking_id=booking.id) }}" class="m-0">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" class="btn btn-sm btn-success w-100" onclick="return confirm('Confirm this booking?')">
-                                            <i class="bi bi-check-circle"></i> Confirm
-                                        </button>
-                                    </form>
-                                    <form method="POST" action="{{ url_for('admin.reject_booking', booking_id=booking.id) }}" class="m-0">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" class="btn btn-sm btn-danger w-100" onclick="return confirm('Reject this booking?')">
-                                            <i class="bi bi-x-circle"></i> Reject
-                                        </button>
-                                    </form>
-                                </div>
-                            {% else %}
+                            {% elif booking.status != 'cancelled' and booking.status != 'completed' %}
                                 <span class="text-muted small">No actions</span>
                             {% endif %}
                         </td>
@@ -220,10 +222,72 @@
                         </div>
                     </div>
                     {% endif %}
+
+                    <!-- Rating Modal for admin's own completed bookings -->
+                    {% if booking.status == 'completed' and booking.user_id == current_user.id %}
+                    <div class="modal fade" id="rateModal{{ booking.id }}" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header" style="background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);">
+                                    <h5 class="modal-title text-white">
+                                        <i class="bi bi-star-fill"></i> 
+                                        {% if booking.id in rated_booking_ids %}Edit Your Rating{% else %}Rate Your Experience{% endif %}
+                                    </h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form method="POST" action="{{ url_for('rating.submit_rating', booking_id=booking.id) }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="next" value="{{ url_for('admin.manage_bookings', status=status) }}">
+                                    <div class="modal-body">
+                                        <div class="text-center mb-3">
+                                            <p class="mb-1"><strong>{{ booking.resource.name }}</strong></p>
+                                            <p class="text-muted small mb-3">{{ booking.booking_date.strftime('%b %d, %Y') }} &bull; {{ booking.start_time.strftime('%H:%M') }} - {{ booking.end_time.strftime('%H:%M') }}</p>
+                                        </div>
+                                        
+                                        <!-- Interactive Star Rating -->
+                                        <div class="text-center mb-4">
+                                            <p class="text-muted small mb-2">How was your experience?</p>
+                                            <div class="star-rating-input" id="starRating{{ booking.id }}">
+                                                {% for i in range(5, 0, -1) %}
+                                                <input type="radio" name="rating" value="{{ i }}" id="star{{ i }}_{{ booking.id }}" 
+                                                       {% if booking.id in rated_booking_ids and user_ratings[booking.id] == i %}checked{% endif %} required>
+                                                <label for="star{{ i }}_{{ booking.id }}" title="{{ i }} star{{ 's' if i != 1 else '' }}">
+                                                    <i class="bi bi-star-fill"></i>
+                                                </label>
+                                                {% endfor %}
+                                            </div>
+                                            <p class="rating-label text-muted small mt-1" id="ratingLabel{{ booking.id }}">
+                                                {% if booking.id in rated_booking_ids %}
+                                                    {% set rv = user_ratings[booking.id] %}
+                                                    {% if rv == 1 %}Poor{% elif rv == 2 %}Fair{% elif rv == 3 %}Good{% elif rv == 4 %}Very Good{% elif rv == 5 %}Excellent{% endif %} ({{ rv }}/5)
+                                                {% else %}
+                                                    Select a rating
+                                                {% endif %}
+                                            </p>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label class="form-label">Comment (Optional)</label>
+                                            <textarea class="form-control" name="comment" rows="3" placeholder="Share your experience with this resource..."></textarea>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                        <button type="submit" class="btn btn-warning">
+                                            <i class="bi bi-star-fill"></i> 
+                                            {% if booking.id in rated_booking_ids %}Update Rating{% else %}Submit Rating{% endif %}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
                     {% endfor %}
                 {% else %}
                 <tr>
-                    <td colspan="8" class="text-center py-5">
+                    <td colspan="9" class="text-center py-5">
                         <p class="text-muted mb-0">No bookings found</p>
                     </td>
                 </tr>
@@ -282,4 +346,26 @@
         font-weight: 600;
     }
 </style>
+
+<script>
+// Star rating interactive labels
+const ratingLabels = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.star-rating-input').forEach(container => {
+        const bookingId = container.id.replace('starRating', '');
+        const labelEl = document.getElementById('ratingLabel' + bookingId);
+        
+        container.querySelectorAll('input[type="radio"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                if (labelEl) {
+                    labelEl.textContent = ratingLabels[this.value] + ' (' + this.value + '/5)';
+                    labelEl.style.color = '#f59e0b';
+                    labelEl.style.fontWeight = '600';
+                }
+            });
+        });
+    });
+});
+</script>
 {% endblock %}

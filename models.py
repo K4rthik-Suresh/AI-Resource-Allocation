@@ -1,34 +1,4 @@
-"""
-================================================================================
-DATABASE MODELS - SQLAlchemy ORM Models
-================================================================================
 
-DESCRIPTION:
-    Defines all database tables and their relationships for the resource booking system.
-
-TABLES:
-    1. User - User accounts with authentication info
-    2. ResourceSystem - Facilities/buildings/campuses  
-    3. UserResourceSystem - Admin assignments to specific facilities
-    4. Resource - Rooms, labs, equipment within a facility
-    5. Booking - Reservations made by users
-    6. BookingHistory - Audit log of all booking changes
-    7. AuditLog - System-wide activity tracking
-
-RELATIONSHIPS:
-    - User (1) --> (Many) Booking
-    - User (1) --> (Many) UserResourceSystem
-    - ResourceSystem (1) --> (Many) Resource
-    - ResourceSystem (1) --> (Many) Booking
-    - Resource (1) --> (Many) Booking
-
-SECURITY:
-    - Passwords stored as bcrypt hashes (never plain text)
-    - Email validation for user accounts
-    - Role-based access control (admin/user)
-
-================================================================================
-"""
 
 from database import db
 from flask_login import UserMixin

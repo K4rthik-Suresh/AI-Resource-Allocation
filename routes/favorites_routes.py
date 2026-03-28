@@ -1,7 +1,4 @@
-"""
-Phase 1: Favorites Routes Blueprint
-Add these routes to your booking_routes.py file or import from here
-"""
+
 
 from flask import Blueprint, jsonify, render_template, redirect, url_for, flash, request
 from flask_login import login_required, current_user
